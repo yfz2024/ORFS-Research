@@ -1,165 +1,59 @@
-# OpenROAD Flow
+# ORFS-Research
 
-[![Build Status](https://jenkins.openroad.tools/buildStatus/icon?job=OpenROAD-flow-scripts-Public%2Fpublic_tests_all%2Fmaster)](https://jenkins.openroad.tools/view/Public/job/OpenROAD-flow-scripts-Public/job/public_tests_all/job/master/)
-[![Docs](https://readthedocs.org/projects/openroad-flow-scripts/badge/?version=latest)](https://openroad-flow-scripts.readthedocs.io/en/latest/?badge=latest)
+ORFS-Research originates from [the OpenROAD Project](https://theopenroadproject.org/) and serves as a platform for developing and sharing next-generation physical design engines. It is designed to act as an open and collaborative innovation sandbox, complementing the production-quality [OpenROAD](https://github.com/The-OpenROAD-Project/OpenROAD) and [OpenROAD-flow-scripts](https://github.com/The-OpenROAD-Project/OpenROAD-flow-scripts) repositories.
 
-OpenROAD-flow-scripts (ORFS) is a fully autonomous, RTL-GDSII flow
-for rapid architecture and design space exploration, early prediction
-of QoR and detailed physical design implementation. However, ORFS
-also enables manual intervention for finer user control of individual
-flow stages through Tcl commands and Python APIs.
 
-```mermaid
-%%{init: { 'logLevel': 'debug', 'theme': 'dark'
-  } }%%
-timeline
-  title RTL-GDSII Using OpenROAD-flow-scripts
-  Synthesis
-    : Inputs  [RTL, SDC, .lib, .lef]
-    : Logic Synthesis  (Yosys)
-    : Output files  [Netlist, SDC]
-  Floorplan
-    : Floorplan Initialization
-    : IO placement  (random)
-    : Timing-driven mixed-size placement
-    : Macro placement
-    : Tapcell and welltie insertion
-    : PDN generation
-  Placement
-    : Global placement without placed IOs
-    : IO placement  (optimized)
-    : Global placement with placed IOs
-    : Resizing and buffering
-    : Detailed placement
-  CTS : Clock Tree Synthesis
-    : Timing optimization
-    : Filler cell insertion
-  Routing
-    : Global Routing
-    : Detailed Routing
-  Finishing
-    : Metal Fill insertion
-    : Signoff timing report
-    : Generate GDSII  (KLayout)
-    : DRC/LVS check (KLayout)
-```
+## Missions
+OpenROAD-Research and ORFS-Research are envisioned as foundational platforms to accelerate collaboration, preserve algorithmic diversity and drive innovation in physical design. Their core missions are to:
 
-## Tool Installation
+- **Serve as an open library of baselines and algorithms**: preserve diverse research contributions (e.g., multiple detailed placers with different heuristics), even if they are not yet production-ready.
 
-There are different ways to install and develop OpenROAD and ORFS, which is the best fit depends use-case, experience and personal taste.
+- **Accelerate innovation**: lower the barrier for contributions in emerging areas, including LLM-based flow autotuning frameworks.
 
-### Use Bazel, avoid installing anything at all and adapt the flow to your needs in your own repository
+- **Support education and workforce development**: provide students and researchers with reproducible implementations and a broad collection of physical design algorithms.
 
-[bazel-orfs](https://github.com/The-OpenROAD-Project/bazel-orfs) provides a seamless, reproducible way to manage dependencies and adapt the flow without requiring manual installations(no Docker images, sudo bash scripts, etc.)
+- **Foster global collaboration**: act as “contrib” repositories (similar to PyTorch’s torch.contrib), where experimental and research-oriented code can coexist. OpenROAD-Research will host academically validated contributions, exploratory prototypes, and heterogeneous approaches.
 
-By leveraging [Bazel](https://bazel.build/)'s robust build system, all dependencies are automatically resolved, versioned, and built in a consistent environment. This eliminates setup complexity, ensures fast incremental builds, and allows for easy customization of the flow, making it an efficient choice for both [beginners](https://github.com/Pinata-Consulting/RegFileStudy) and [advanced](https://github.com/The-OpenROAD-Project/megaboom) users.
+## Research Directions
+We anticipate significant contributions from the global EDA community, including:
 
-### Docker Based Installation
+- **GPU-accelerated P&R engines** integrated within OpenROAD-research, covering from partitioning to design rule checking (DRC), enabling substantial runtime improvements and scalability
 
-To ease dependency installation issues, ORFS uses docker images.
-Docker image includes ORFS binaries, applications as well as all
-required dependencies. All of the flow tools are encapsulated
-inside the container image.
+- **ML-assisted physical design** where ML models are tightly integrated with OpenROAD-research to enable closed-loop optimization and QoR enhancement across the P&R flow
 
-If `Docker` is not installed already, install latest docker tool
-based on OS from [here](https://docs.docker.com/engine/install/).
+- **True 3D P&R engines** in OpenROAD-research that provide open, reproducible and transparent baselines for 3D integration
 
-To manage docker as non-root user and verify that you can run
-`docker` commands without `sudo` must complete steps from
-[here](https://docs.docker.com/engine/install/linux-postinstall/).
+- **The pytorch in EDA** that offers modular operators and Python APIs within OpenROAD-research, to facilitate rapid prototyping and experimentation of ML-driven EDA methodologies
 
-#### Build ORFS with Docker
 
-Document for detailed steps on docker based installation found
-[here](./docs/user/BuildWithDocker.md).
+## How to Contribute
+We welcome contributions from the community. To ensure consistency and maintain quality across the project, please follow the guidelines below:
 
-### Pre-built Binaries
+- **Branching**: create your feature branch from the master branch.
 
-You can download, set up and run ORFS easily with pre-built
-binaries, including OpenROAD, Yosys and Klayout. See instructions
-[here](./docs/user/BuildWithPrebuilt.md).
+- **Licensing**: all contributions should use a permissive open-source license, such as BSD 3-Clause License.
 
-> **Thanks** to [Precision Innovations](https://precisioninno.com/) for
-> providing and supporting OpenROAD based binaries.
+- **Testing**: verify that your changes do not break existing functionality and maintain expected behavior across benchmarks.
 
-> **Note** Only the latest version of OpenROAD is guaranteed to work with
-> the latest version of ORFS.
+- **DCO Sign-Off**: each commit should be signed using the Developer Certificate of Origin (DCO). Use the -s flag when committing:
 
-> **Disclaimer** The versions of OpenROAD, Yosys and Klayout provided by
-> other third-party vendors are not guaranteed to work with ORFS.
+  ```bash
+  git commit -s -m "Your commit message"
+  ```
 
-### Build from sources locally
+- **Submitting a Pull Request**: open a Pull Request (PR) targeting the main branch.
 
-Document for detailed local build from sources and installation steps found [here](./docs/user/BuildLocally.md).
+- **Reviewing**: upon submission, your PR will undergo automated regression testing. If the tests pass, your contribution will be accepted and merged. If any issues are identified, we will provide feedback to help you make the necessary revisions.
 
-## Using the Flow
+  
+## Acknowledgments
+Contributions to OpenROAD-Research and ORFS-Research are led by:
+- **Prof. Zhiang Wang** (Fudan University)
 
-- For details about the OpenROAD and the available features and
-  individual flows commands, see the documentation
-  [here](https://openroad.readthedocs.io/en/latest/).
-- For details about automated flow setup, see ORFS docs
-  [here](https://openroad-flow-scripts.readthedocs.io/en/latest/index2.html#getting-started-with-openroad-flow-scripts).
-- Flow tutorial to run the complete OpenROAD based flow from
-  RTL-GDSII, see the tutorial
-  [here](https://openroad-flow-scripts.readthedocs.io/en/latest/tutorials/FlowTutorial.html).
-- To watch ORFS flow tutorial videos, check
-  [here](https://theopenroadproject.org/video).
+  
+We welcome contributions and collaborations from the broader community.
 
-## Building from your own git repository
-
-ORFS supports hosting projects in your own git repository
-without the need to fork ORFS.
-
-To build from your own git repository:
-
-    cd /home/me/myproject
-    make --file=~/OpenROAD-flow-scripts/flow/Makefile DESIGN_CONFIG=somefolder/config.mk ...
-
-## Running a quick smoke-test of ORFS on your own Verilog
-
-You can [run ORFS on your own Verilog files](./flow/designs/asap7/minimal/README.md)
-without setting up a project or moving your Verilog files and even learn
-a thing or two about floorplan, placement and routing
-before you create an .sdc file and a config.mk file.
-
-## Citing this Work
-
-If you use this software in any published work, we would appreciate a citation!
-Please use the following references:
-
-```
-@article{ajayi2019openroad,
-  title={OpenROAD: Toward a Self-Driving, Open-Source Digital Layout Implementation Tool Chain},
-  author={Ajayi, T and Blaauw, D and Chan, TB and Cheng, CK and Chhabria, VA and Choo, DK and Coltella, M and Dobre, S and Dreslinski, R and Foga{\c{c}}a, M and others},
-  journal={Proc. GOMACTECH},
-  pages={1105--1110},
-  year={2019}
-}
-```
-
-A copy of this paper is available
-[here](http://people.ece.umn.edu/users/sachin/conf/gomactech19.pdf) (PDF).
-
-```
-@inproceedings{ajayi2019toward,
-  title={Toward an open-source digital flow: First learnings from the openroad project},
-  author={Ajayi, Tutu and Chhabria, Vidya A and Foga{\c{c}}a, Mateus and Hashemi, Soheil and Hosny, Abdelrahman and Kahng, Andrew B and Kim, Minsoo and Lee, Jeongsup and Mallappa, Uday and Neseem, Marina and others},
-  booktitle={Proceedings of the 56th Annual Design Automation Conference 2019},
-  pages={1--4},
-  year={2019}
-}
-```
-
-A copy of this paper is available
-[here](https://vlsicad.ucsd.edu/Publications/Conferences/371/c371.pdf) (PDF).
-
-If you like the tools, please give us a star on our GitHub repos!
 
 ## License
 
-The OpenROAD-flow-scripts repository (build and run scripts) has a BSD 3-Clause License.
-The flow relies on several tools, platforms and designs that each have their own licenses:
-
-- Find the tool license at: `OpenROAD-flow-scripts/tools/{tool}/` or `OpenROAD-flow-scripts/tools/OpenROAD/src/{tool}/`.
-- Find the platform license at: `OpenROAD-flow-scripts/flow/platforms/{platform}/`.
-- Find the design license at: `OpenROAD-flow-scripts/flow/designs/src/{design}/`.
+BSD 3-Clause License. See [LICENSE](LICENSE) file.
