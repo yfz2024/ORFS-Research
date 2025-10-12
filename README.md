@@ -14,6 +14,7 @@ OpenROAD-Research and ORFS-Research are envisioned as foundational platforms to 
 
 - **Foster global collaboration**: act as “contrib” repositories (similar to PyTorch’s torch.contrib), where experimental and research-oriented code can coexist. OpenROAD-Research will host academically validated contributions, exploratory prototypes, and heterogeneous approaches.
 
+
 ## Research Directions
 We anticipate significant contributions from the global EDA community, including:
 
@@ -24,6 +25,12 @@ We anticipate significant contributions from the global EDA community, including
 - **True 3D P&R engines** in OpenROAD-research that provide open, reproducible and transparent baselines for 3D integration
 
 - **The pytorch in EDA** that offers modular operators and Python APIs within OpenROAD-research, to facilitate rapid prototyping and experimentation of ML-driven EDA methodologies
+
+
+## Updates Compared to OpenROAD-flow-scripts
+- **[Pin3DFlow](https://github.com/ieee-ceda-datc/ORFS-Research/tree/main/flow-Pin3D)**: scripts and materials for enabling 3D physical design flows using OpenROAD-Research platform.
+- **[ORFS-Agent](https://github.com/ieee-ceda-datc/ORFS-Research/tree/main/flow-Agent)**: an LLM-based iterative optimization agent for automating parameter tuning in ORFS-Research.
+  
 
 
 ## How to Contribute
