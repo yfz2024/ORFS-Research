@@ -197,7 +197,7 @@ create_backup() {
     mkdir -p "$backup_dir"
     
     # Move config and constraint files
-    mv designs/${platform}/${design}/config_*.mk "$backup_dir"/ 2>/dev/null
+    cp designs/${platform}/${design}/config_*.mk "$backup_dir"/ 2>/dev/null
     mv designs/${platform}/${design}/constraint_*.sdc "$backup_dir"/ 2>/dev/null
     if [[ "$platform" == "asap7" && "$design" == "jpeg" ]]; then
         mv designs/${platform}/${design}/jpeg_encoder15_7nm_*.sdc "$backup_dir"/ 2>/dev/null
@@ -235,6 +235,11 @@ for i in $(seq 1 $TOTAL_ITERS); do
     
     # Generate constraints for next iteration (skip for last iteration)
     if [ "$i" -lt "$TOTAL_ITERS" ]; then
+        for objective in "$objective"; do
+            echo "Running optimization for $objective"
+            python3 stage_optimize.py "$platform" "$design" "$objective" --max-react-steps 3
+            cp -r results/ results_${platform}_${design}_${objective}/
+        done
         echo "Running optimization for next iteration..."
         python3 optimize.py "$platform" "$design" "$objective" "$PARALLEL_RUNS"
     fi
