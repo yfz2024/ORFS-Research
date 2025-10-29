@@ -39,7 +39,9 @@ The agent demonstrates improvements in wirelength and effective clock period by 
 
 The framework of A2-ORFO Agent is shown in the left figure below , and the relevant details are introduced on the right below.
 
-![输入图片说明](figures/framework.png)
+<p align="center">
+  <img src="figures/framework.png" alt="framework figure" width="90%">
+</p>
 
 ## Project Structure
 
