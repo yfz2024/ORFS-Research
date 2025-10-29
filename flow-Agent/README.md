@@ -7,6 +7,32 @@ The agent demonstrates improvements in wirelength and effective clock period by 
 
 ![输入图片说明](figures/expanding.png)
 
+## Contents 
+- [Framework of A2-ORFO](#Framework of A2-ORFO)
+- [Project Structure](#Project Structure)
+  - [Core Modules](#Core Modules)
+  - [Relevant Execution Scripts and Parameter Constraints File](#Relevant Execution Scripts and Parameter Constraints File)
+  - [Helper Utilities](#Helper Utilities)
+- [Key Features](#Key Features)
+- [Environment Setup](#Environment Setup)
+  - [Prerequisites](#Prerequisites)
+  - [Environment Setup](#Environment Setup)
+     - [Python Environment Setup](#Python Environment Setup)
+     - [Python Dependencies](#Python Dependencies)
+     - [System Environment Setup](#System Environment Setup)
+     - [System Dependencies](#System Dependencies)
+- [Operating Instructions](#Operating Instructions)
+  - [1. Parameter Configuration](#1. Parameter Configuration)
+  - [2. Design-Specific Configuration](#2. Design-Specific Configuration)
+  - [3. Resource Planning](#3. Resource Planning)
+  - [4. API Key Setup](#4. API Key Setup)
+  - [5. Running the Optimization](#5. Running the Optimization)
+     - [Basic Usage](#Basic Usage)
+     - [Command Line Options](#Command Line Options)
+     - [Example Runs](#Example Runs)
+     - [Output Structure](#Output Structure)
+
+
 ## Framework of A2-ORFO
 
 The framework of A2-ORFO Agent is shown in the left figure below , and the relevant details are introduced on the right below.
@@ -79,7 +105,7 @@ source .venv_orfs_agent/bin/activate
 pip install numpy pandas scikit-learn scipy python-dotenv scikit-optimize openai torch
 ```
 
-#### The Python dependencies required to run the system are described as follows
+#### Python Dependencies
 - `numpy` - Numerical computing
 - `pandas` - Data manipulation and analysis
 - `scikit-learn` - Machine learning utilities
@@ -89,13 +115,13 @@ pip install numpy pandas scikit-learn scipy python-dotenv scikit-optimize openai
 - `scikit-optimize` - Bayesian optimization
 - `torch (pytorch)` -  Numerical computing
 
-#### Additional System Dependencies
+#### System Environment Setup
 ```bash
 # Install required system tools
 sudo apt-get update
 sudo apt-get install jq bc timeout
 ```
-#### The system dependencies required to run the system are described as follows:
+#### System Dependencies
 - `jq` - used for parsing and processing JSON data in the command line
 - `bc` - Command-line Calculator, used for precise numerical operations
 - `timeout` - Used to limit the execution time of a command or script
