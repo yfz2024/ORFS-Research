@@ -5,6 +5,8 @@ We expand ([ORFS-Agent](https://github.com/ABKGroup/ORFS-Agent#)) into a complet
 
 The agent demonstrates improvements in wirelength and effective clock period by over XX% while using XX% fewer optimization iterations compared to baseline Bayesian optimization approaches and over XX% while using XX% fewer optimization iterations compared to ORFS-Agent. The framework is modular and model-agnostic, working with different LLMs without requiring fine-tuning.
 
+![输入图片说明](figure/expanding.png)
+
 ## Framework of A2-ORFO
 
 The framework of A2-ORFO Agent is shown in the left figure below , and the relevant details are introduced on the right below.
