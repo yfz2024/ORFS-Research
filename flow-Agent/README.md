@@ -11,7 +11,8 @@ The agent demonstrates improvements in wirelength and effective clock period by 
 - [Framework of A2-ORFO](#Framework-of-A2-ORFO)
 - [Project Structure](#Project-Structure)
   - [Core Modules](#Core-Modules)
-  - [Relevant Execution Scripts and Parameter Constraints File](#Relevant-Execution-Scripts-and-Parameter-Constraints-File)
+  - [Relevant Execution Scripts](#Relevant-Execution-Scripts)
+  - [Parameter Constraints Files](#Parameter-Constraints-Files)
   - [Helper Utilities](#Helper-Utilities)
 - [Key Features](#Key-Features)
 - [Environment Setup](#Environment-Setup)
@@ -55,12 +56,16 @@ The ORFS-Agent consists of several key components:
 - **`rag_data/`**：Stores retrieval databases, design logs, error samples, and knowledge index files.
 - **`models/`**：Stores trained models, vectorized weights, and embedding files to support model inference and knowledge retrieval.
 
-### Relevant Execution Scripts and Parameter Constraints File
+### Relevant Execution Scripts
 
 - **`maindriver.sh`**: Primary execution script that orchestrates the entire optimization workflow
 - **`run_sequential.sh`**: Handles sequential optimization phases and parameter generation
 - **`run_parallel.sh`**: Manages parallel execution of multiple design runs
 - **`Makefile`**: Modified OpenROAD Makefile supporting parallel runs with INT_PARAM configuration
+- **`opt_config.json`**: Parameter constraints, ranges, and optimization settings for different design-PDK combinations
+- **`INSTRUCTIONS.md`**: Setup and execution instructions
+
+### Parameter Constraints Files
 - **`opt_config.json`**: Parameter constraints, ranges, and optimization settings for different design-PDK combinations
 - **`INSTRUCTIONS.md`**: Setup and execution instructions
 
