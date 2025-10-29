@@ -23,11 +23,11 @@ The agent demonstrates improvements in wirelength and effective clock period by 
      - [System Environment Setup](#System-Environment-Setup)
      - [System Dependencies](#System-Dependencies)
 - [Operating Instructions](#Operating-Instructions)
-  - [1. Parameter Configuration](#1.-Parameter-Configuration)
-  - [2. Design-Specific Configuration](#2.-Design-Specific-Configuration)
-  - [3. Resource Planning](#3.-Resource-Planning)
-  - [4. API Key Setup](#4.-API-Key-Setup)
-  - [5. Running the Optimization](#5.-Running-the-Optimization)
+  - [Parameter Configuration](#Parameter-Configuration)
+  - [Design-Specific Configuration](#Design-Specific-Configuration)
+  - [Resource Planning](#Resource-Planning)
+  - [API Key Setup](#API-Key-Setup)
+  - [Running the Optimization](#Running-the-Optimization)
      - [Basic Usage](#Basic-Usage)
      - [Command Line Options](#Command-Line-Options)
      - [Example Runs](#Example-Runs)
@@ -131,7 +131,7 @@ sudo apt-get install jq bc timeout
 - `timeout` - Used to limit the execution time of a command or script
 
 ## Operating Instructions
-### 1. Parameter Configuration
+### Parameter Configuration
 
 Edit `opt_config.json` to define:
 
@@ -157,7 +157,7 @@ Example configuration structure:
 }
 ```
 
-### 2. Design-Specific Configuration
+### Design-Specific Configuration
 
 Before running an optimization, you may need to adjust the `config.mk` file for your chosen design, as the default files may not define all tunable parameters.
 
@@ -171,7 +171,7 @@ Before running an optimization, you may need to adjust the `config.mk` file for 
 
 - **TCL Scripts**: Ensure you are using the provided custom TCL scripts (`fastasap.tcl`, `fastsky.tcl`). You must link these in the `config.mk` file for your design. Refer to the example configuration changes in `exampleaes/configchanges.mk` for guidance.
 
-### 3. Resource Planning
+### Resource Planning
 
 Configure resource allocation in `maindriver.sh`:
 
@@ -187,7 +187,7 @@ ECP_WEIGHT_SURROGATE=0.5 # Weight for post-CTS ECP in the surrogate model
 WL_WEIGHT_SURROGATE=0.5  # Weight for post-CTS WL in the surrogate model
 ```
 
-### 4. API Key Setup
+### API Key Setup
 
 The agent requires API keys for LLM providers. You will need to add them directly into the source code:
 
@@ -195,7 +195,7 @@ The agent requires API keys for LLM providers. You will need to add them directl
 
 **Note**: For improved security, consider modifying the scripts to load keys from environment variables using the `python-dotenv` package.
 
-### 5. Running the Optimization
+### Running the Optimization
 
 Although our internal optimization framework processes are different, the usage is the same as that of ORFS-Agent
 
