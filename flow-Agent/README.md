@@ -34,6 +34,7 @@ The agent demonstrates improvements in wirelength and effective clock period by 
      - [Command Line Options](#Command-Line-Options)
      - [Example Runs](#Example-Runs)
      - [Output Structure](#Output-Structure)
+- [Experimental Results](#Experimental-Results)
 
 ## Framework of A2-ORFO
 
@@ -253,3 +254,51 @@ Each optimization run generates:
 
 - **CSV files**: Parameter configurations and results tracking
 Note that the results of the original paper were obtained with Claude-3.5 Sonnet and you *must* ensure that your key for replication and/or running of the tool can support frequent tool calls to the model.
+
+## Experimental Results
+<table>
+  <thead>
+    <tr>
+      <th rowspan="2">Tech</th>
+      <th rowspan="2">Circuit</th>
+      <th colspan="2">ORFS default flow (no agent)</th>
+      <th colspan="2">ORFS-Agent with deepseek api (baseline)</th>
+      <th colspan="2">RAG only</th>
+      <th colspan="2">ReAct only</th>
+      <th colspan="2">Both RAG and ReAct</th>
+    </tr>
+    <tr>
+      <th>WL</th><th>ECP*</th>
+      <th>WL</th><th>ECP*</th>
+      <th>WL</th><th>ECP*</th>
+      <th>WL</th><th>ECP*</th>
+      <th>WL</th><th>ECP*</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr>
+      <td rowspan="3">SKY130HD</td>
+      <td>IBEX</td><td>1082837</td><td>10.0</td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td>
+    </tr>
+    <tr>
+      <td>AES</td><td>806189</td><td>4.5</td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td>
+    </tr>
+    <tr>
+      <td>JPEG</td><td>2081529</td><td>8.0</td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td>
+    </tr>
+    <tr>
+      <td rowspan="3">ASAP7</td>
+      <td>IBEX</td><td>149253</td><td>1260</td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td>
+    </tr>
+    <tr>
+      <td>AES</td><td>113447</td><td>400</td><td></td><td></td><td>101258</td><td>312.08</td><td></td><td></td><td>96012</td><td>465.68</td>
+    </tr>
+    <tr>
+      <td>JPEG</td><td>391336</td><td>1100</td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td>
+    </tr>
+    <tr>
+      <td colspan="2">Average</td>
+      <td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td>
+    </tr>
+  </tbody>
+</table>
