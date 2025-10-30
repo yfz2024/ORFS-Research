@@ -262,7 +262,7 @@ Note that the results of the original paper were obtained with Claude-3.5 Sonnet
       <th rowspan="2">Tech</th>
       <th rowspan="2">Circuit</th>
       <th colspan="2">ORFS default flow (no agent)</th>
-      <th colspan="2">ORFS-Agent with deepseek api (baseline)</th>
+      <th colspan="2">ORFS-Agent with deepseek api</th>
       <th colspan="2">RAG only</th>
       <th colspan="2">ReAct only</th>
       <th colspan="2">Both RAG and ReAct</th>
