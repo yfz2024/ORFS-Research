@@ -256,13 +256,13 @@ Each optimization run generates:
 Note that the results of the original paper were obtained with Claude-3.5 Sonnet and you *must* ensure that your key for replication and/or running of the tool can support frequent tool calls to the model.
 
 ## Experimental Results
-<table border="1" cellspacing="0" cellpadding="4" style="border-collapse:collapse; text-align:center;">
-  <thead style="background-color:#f9f9f9;">
+<table style="border-collapse:collapse; text-align:center; font-size:14px;" border="1" bordercolor="#1E4E9E" cellspacing="0" cellpadding="5">
+  <thead style="background-color:#f9f9f9; font-weight:bold;">
     <tr>
       <th rowspan="2">Tech</th>
       <th rowspan="2">Circuit</th>
-      <th colspan="2">ORFS default flow (no agent)</th>
-      <th colspan="2">ORFS-Agent with deepseek api (baseline)</th>
+      <th colspan="2">ORFS default<br>flow (no agent)</th>
+      <th colspan="2">ORFS-Agent with<br>deepseek api (baseline)</th>
       <th colspan="2">RAG only</th>
       <th colspan="2">ReAct only</th>
       <th colspan="2">Both RAG and ReAct</th>
@@ -313,5 +313,26 @@ Note that the results of the original paper were obtained with Claude-3.5 Sonnet
     <tr>
       <td>AES</td>
       <td>113447</td><td>400</td>
-      <td>117369</td><td>389.09</t
-
+      <td>117369</td><td>389.09</td>
+      <td>101258</td><td>312.08</td>
+      <td>103820</td><td>484.85</td>
+      <td>96012</td><td>465.68</td>
+    </tr>
+    <tr>
+      <td>JPEG</td>
+      <td>391336</td><td>1100</td>
+      <td></td><td></td>
+      <td></td><td></td>
+      <td></td><td></td>
+      <td></td><td></td>
+    </tr>
+    <tr>
+      <td colspan="2">Average</td>
+      <td></td><td></td>
+      <td></td><td></td>
+      <td></td><td></td>
+      <td></td><td></td>
+      <td></td><td></td>
+    </tr>
+  </tbody>
+</table>
