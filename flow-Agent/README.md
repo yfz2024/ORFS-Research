@@ -238,6 +238,9 @@ chmod +x maindriver.sh run_parallel.sh run_sequential.sh
 # Directly run 6 examples of DWL optimization in full sequence
 chmod +x run_all.sh
 ./run_all.sh
+
+# Optimize AES circuit on ASAP7 for ECP with sub-stage and dual supervision framework
+./maindriver_stage.sh -p asap7 -d aes -o ECP
 ```
 
 #### Output Structure
