@@ -1,0 +1,399 @@
+#!/bin/bash
+
+# Default values
+TOTAL_ITERS=6
+PARALLEL_RUNS=50
+TIMEOUT="45m"
+TOTAL_CPUS=110
+TOTAL_RAM=220
+ECP_WEIGHT=0.5
+WL_WEIGHT=0.5
+ECP_WEIGHT_SURROGATE=0.5
+WL_WEIGHT_SURROGATE=0.5
+RUN_STAGE_OPTIMIZE=0
+RUN_STAGE_OVERRIDE=0
+RUN_OPTIMIZE=0
+STAGE_OPT_STAGES=""
+STAGE_OPT_MAX_STEPS=3
+STAGE_OPT_TEMPERATURE=0.1
+STAGE_OPT_DRY_RUN=0
+STAGE_OVERRIDE_STAGES=""
+STAGE_OVERRIDE_MAX_STEPS=3
+STAGE_OVERRIDE_TEMPERATURE=0.1
+STAGE_OVERRIDE_DRY_RUN=0
+OVERRIDE_FILES=()
+OVERRIDE_PARAMS=()
+
+# Parse command line arguments
+while [[ $# -gt 0 ]]; do
+    case $1 in
+        -p|--platform)
+            platform="$2"
+            shift 2
+            ;;
+        -d|--design)
+            design="$2"
+            shift 2
+            ;;
+        -i|--iterations)
+            TOTAL_ITERS="$2"
+            shift 2
+            ;;
+        -r|--parallel-runs)
+            PARALLEL_RUNS="$2"
+            shift 2
+            ;;
+        -t|--timeout)
+            TIMEOUT="$2"
+            shift 2
+            ;;
+        -o|--objective)
+            objective="$2"
+            shift 2
+            ;;
+        --run-stage-optimize)
+            RUN_STAGE_OPTIMIZE=1
+            shift
+            ;;
+        --stage-opt-stages)
+            STAGE_OPT_STAGES="$2"
+            shift 2
+            ;;
+        --stage-opt-max-steps)
+            STAGE_OPT_MAX_STEPS="$2"
+            shift 2
+            ;;
+        --stage-opt-temperature)
+            STAGE_OPT_TEMPERATURE="$2"
+            shift 2
+            ;;
+        --stage-opt-dry-run)
+            STAGE_OPT_DRY_RUN=1
+            shift
+            ;;
+        --run-stage-override)
+            RUN_STAGE_OVERRIDE=1
+            shift
+            ;;
+        --run-optimize)
+            RUN_OPTIMIZE=1
+            shift
+            ;;
+        --override-stages)
+            STAGE_OVERRIDE_STAGES="$2"
+            shift 2
+            ;;
+        --override-file)
+            OVERRIDE_FILES+=("$2")
+            shift 2
+            ;;
+        --override-param)
+            OVERRIDE_PARAMS+=("$2")
+            shift 2
+            ;;
+        --override-max-steps)
+            STAGE_OVERRIDE_MAX_STEPS="$2"
+            shift 2
+            ;;
+        --override-temperature)
+            STAGE_OVERRIDE_TEMPERATURE="$2"
+            shift 2
+            ;;
+        --override-dry-run)
+            STAGE_OVERRIDE_DRY_RUN=1
+            shift
+            ;;
+        *)
+            echo "Unknown option: $1"
+            exit 1
+            ;;
+    esac
+done
+
+# Validate required arguments
+if [[ -z "$platform" || -z "$design" ]]; then
+    echo "Usage: $0 -p <platform> -d <design> [-i iterations] [-r parallel_runs] [-t timeout] [-o objective]"
+    echo "  platform: asap7 or sky130hd"
+    echo "  design: aes, ibex, or jpeg"
+    echo "  iterations: total number of iterations (default: 6)"
+    echo "  parallel_runs: number of parallel runs (default: 50)"
+    echo "  timeout: timeout per run (default: 45m)"
+    echo "  objective: ecp, wl, or weighted (default: ecp)"
+    echo "  --run-stage-optimize: invoke stage_optimize.py before optimize_raw"
+    echo "  --stage-opt-stages \"synth place\": optional subset passed to stage_optimize.py"
+    echo "  --run-stage-override: invoke stage_override.py with provided overrides"
+    echo "  --override-file file.json / --override-param stage.param=value: supply overrides"
+    echo "  --run-optimize: invoke optimize.py alongside optimize_raw.py each iteration"
+    exit 1
+fi
+
+# Set default objective if not specified
+objective=${objective:-"ECP"}
+
+# Convert objective to uppercase for consistency
+objective="${objective^^}"
+
+# Validate platform
+if [[ "$platform" != "asap7" && "$platform" != "sky130hd" ]]; then
+    echo "Error: platform must be either asap7 or sky130hd"
+    exit 1
+fi
+
+# Validate design
+if [[ "$design" != "aes" && "$design" != "ibex" && "$design" != "jpeg" ]]; then
+    echo "Error: design must be one of: aes, ibex, jpeg"
+    exit 1
+fi
+
+# Validate objective
+if [[ "$objective" != "ECP" && "$objective" != "DWL" && "$objective" != "COMBO" ]]; then
+    echo "Error: objective must be one of: ECP, DWL, COMBO"
+    exit 1
+fi
+
+# Validate weights sum to 1
+export PLATFORM=$platform
+export DESIGN=$design
+export OBJECTIVE=$objective
+
+if [[ "$objective" == "COMBO" ]]; then
+    # Ensure jq is installed
+    if ! command -v jq &> /dev/null; then
+        echo "Error: jq is required but not installed. Please install jq."
+        exit 1
+    fi
+
+    # Read weights from opt_config.json
+    weights=$(jq -r \
+      --arg pdk "$platform" \
+      --arg design "$design" \
+      --arg goal "$objective" \
+      '.configurations[] | select(.platform == $pdk and .design == $design and .goal == $goal)' \
+      opt_config.json)
+
+    if [[ -z "$weights" || "$weights" == "null" ]]; then
+        echo "Error: Could not find weights for platform $platform and design $design in opt_config.json."
+        exit 1
+    fi
+
+    # Extract real metric weights
+    ECP_WEIGHT=$(echo "$weights" | jq -r '.weights.ecp')
+    WL_WEIGHT=$(echo "$weights" | jq -r '.weights.dwl')
+
+    # Extract surrogate metric weights
+    ECP_WEIGHT_SURROGATE=$(echo "$weights" | jq -r '.weights_surrogate.ecp')
+    WL_WEIGHT_SURROGATE=$(echo "$weights" | jq -r '.weights_surrogate.dwl')
+
+    # Validate that the weights sum to 1
+    weight_sum=$(echo "$ECP_WEIGHT + $WL_WEIGHT" | bc -l)
+    if (( $(echo "$weight_sum != 1" | bc -l) )); then
+        echo "Error: ECP_WEIGHT ($ECP_WEIGHT) and WL_WEIGHT ($WL_WEIGHT) must sum to 1."
+        exit 1
+    fi
+
+    surrogate_weight_sum=$(echo "$ECP_WEIGHT_SURROGATE + $WL_WEIGHT_SURROGATE" | bc -l)
+    if (( $(echo "$surrogate_weight_sum != 1" | bc -l) )); then
+        echo "Error: ECP_WEIGHT_SURROGATE ($ECP_WEIGHT_SURROGATE) and WL_WEIGHT_SURROGATE ($WL_WEIGHT_SURROGATE) must sum to 1."
+        exit 1
+    fi
+
+    # Export weights for use in optimize.py
+    export ECP_WEIGHT
+    export WL_WEIGHT
+    export ECP_WEIGHT_SURROGATE
+    export WL_WEIGHT_SURROGATE
+fi
+
+# Calculate resources per run
+cpus_per_run=$(( TOTAL_CPUS / PARALLEL_RUNS ))
+ram_per_run=$(( TOTAL_RAM / PARALLEL_RUNS ))
+
+# Ensure minimum resources
+if [[ $cpus_per_run -lt 2 ]]; then
+    echo "Warning: Not enough CPUs. Reducing parallel runs to $((TOTAL_CPUS / 2))"
+    PARALLEL_RUNS=$((TOTAL_CPUS / 2))
+    cpus_per_run=2
+fi
+
+if [[ $ram_per_run -lt 4 ]]; then
+    echo "Warning: Not enough RAM. Reducing parallel runs to $((TOTAL_RAM / 4))"
+    PARALLEL_RUNS=$((TOTAL_RAM / 4))
+    ram_per_run=4
+fi
+
+# Export resource variables for child scripts
+export PARALLEL_RUNS
+export CPUS_PER_RUN=$cpus_per_run
+export RAM_PER_RUN=$ram_per_run
+export TIMEOUT
+
+# Create logs directory
+mkdir -p logs
+
+# Define the line numbers for DESIGN_CONFIG lines
+start_line=9
+end_line=15
+
+# Function to comment all DESIGN_CONFIG lines
+comment_all_design_configs() {
+    sed -i "${start_line},${end_line} s/^\([^#]\)/#\1/" Makefile
+}
+
+# Function to uncomment a specific DESIGN_CONFIG line
+uncomment_design_config_line() {
+    local line_num=$1
+    sed -i "${line_num} s/^#//" Makefile
+}
+
+# Comment all DESIGN_CONFIG lines first
+comment_all_design_configs
+
+# Find the line number matching the desired DESIGN_CONFIG
+config_pattern="DESIGN_CONFIG=./designs/${platform}/${design}/config_\\\$(INT_PARAM).mk"
+line_num=$(grep -n "$config_pattern" Makefile | cut -d: -f1)
+
+if [ -n "$line_num" ]; then
+    # Uncomment the specific DESIGN_CONFIG line
+    uncomment_design_config_line $line_num
+else
+    echo "Error: Could not find DESIGN_CONFIG line for platform: $platform, design: $design"
+    exit 1
+fi
+
+# Function to create backup
+create_backup() {
+    local platform=$1
+    local design=$2
+    local iteration=$3
+    local backup_dir="./backup_dir/${platform}/${design}/result_dump_${iteration}"
+    
+    echo "Creating backup for iteration ${iteration}..."
+    mkdir -p "$backup_dir"
+    
+    # Move config and constraint files
+    # mv designs/${platform}/${design}/config_*.mk "$backup_dir"/ 2>/dev/null
+    cp designs/${platform}/${design}/config_*.mk "$backup_dir"/ 2>/dev/null
+    mv designs/${platform}/${design}/constraint_*.sdc "$backup_dir"/ 2>/dev/null
+    if [[ "$platform" == "asap7" && "$design" == "jpeg" ]]; then
+        mv designs/${platform}/${design}/jpeg_encoder15_7nm_*.sdc "$backup_dir"/ 2>/dev/null
+    fi
+    
+    # Move logs
+    mkdir -p "$backup_dir/logs_dump"
+    mv logs/${platform}/${design}/* "$backup_dir/logs_dump"/ 2>/dev/null
+    
+    # Move results
+    mkdir -p "$backup_dir/results_dump"
+    mv results/${platform}/${design}/* "$backup_dir/results_dump"/ 2>/dev/null
+    
+    # Move platform_design log files from current directory
+    mv ${platform}_${design}*.log "$backup_dir"/ 2>/dev/null
+    
+    echo "Backup created in ${backup_dir}"
+}
+
+run_stage_optimize() {
+    local cmd=(python3 stage_optimize.py "$platform" "$design" "$objective" "--max-react-steps" "$STAGE_OPT_MAX_STEPS" "--temperature" "$STAGE_OPT_TEMPERATURE")
+
+    if [[ -n "$STAGE_OPT_STAGES" ]]; then
+        read -r -a stage_list <<< "$STAGE_OPT_STAGES"
+        if [[ ${#stage_list[@]} -gt 0 ]]; then
+            cmd+=("--stages")
+            for stage_name in "${stage_list[@]}"; do
+                cmd+=("$stage_name")
+            done
+        fi
+    fi
+
+    if [[ "$STAGE_OPT_DRY_RUN" -eq 1 ]]; then
+        cmd+=("--dry-run")
+    fi
+
+    echo "Running stage_optimize.py: ${cmd[*]}"
+    "${cmd[@]}"
+}
+
+run_stage_override() {
+    if [[ ${#OVERRIDE_FILES[@]} -eq 0 && ${#OVERRIDE_PARAMS[@]} -eq 0 ]]; then
+        echo "Error: --run-stage-override requires at least one --override-file or --override-param."
+        exit 1
+    fi
+
+    local cmd=(python3 stage_override.py "$platform" "$design" "$objective" "--max-react-steps" "$STAGE_OVERRIDE_MAX_STEPS" "--temperature" "$STAGE_OVERRIDE_TEMPERATURE")
+
+    if [[ -n "$STAGE_OVERRIDE_STAGES" ]]; then
+        read -r -a override_stage_list <<< "$STAGE_OVERRIDE_STAGES"
+        if [[ ${#override_stage_list[@]} -gt 0 ]]; then
+            cmd+=("--stages")
+            for stage_name in "${override_stage_list[@]}"; do
+                cmd+=("$stage_name")
+            done
+        fi
+    fi
+
+    for override_file in "${OVERRIDE_FILES[@]}"; do
+        cmd+=("--overrides-file" "$override_file")
+    done
+
+    for override_param in "${OVERRIDE_PARAMS[@]}"; do
+        cmd+=("--override" "$override_param")
+    done
+
+    if [[ "$STAGE_OVERRIDE_DRY_RUN" -eq 1 ]]; then
+        cmd+=("--dry-run")
+    fi
+
+    echo "Running stage_override.py: ${cmd[*]}"
+    "${cmd[@]}"
+}
+
+# Main iteration loop
+for i in $(seq 1 $TOTAL_ITERS); do
+    echo "Starting iteration $i of $TOTAL_ITERS"
+    
+    # Run sequential phase
+    # echo '"$platform" "$design" "$PARALLEL_RUNS" "$i"'
+    echo "${platform}, ${design}, ${PARALLEL_RUNS}, ${i}"
+    ./run_sequential.sh "$platform" "$design" "$PARALLEL_RUNS" "$i"
+    echo "./run_sequential.sh \"$platform\" \"$design\" \"$PARALLEL_RUNS\" \"$i\""
+    
+    # Run parallel phase with timeout
+    timeout "$TIMEOUT" ./run_parallel.sh "$platform" "$design" "$PARALLEL_RUNS" || true
+    
+    # Kill any remaining parallel jobs
+    pkill -P $$ || true
+    
+    # Create backup of this iteration's results
+    create_backup "$platform" "$design" "$i"
+    
+    # Generate constraints for next iteration (skip for last iteration)
+    if [ "$i" -lt "$TOTAL_ITERS" ]; then
+        # for objective in "$objective"; do
+        #     echo "Running optimization for $objective"
+        #     python3 stage_optimize.py "$platform" "$design" "$objective" --max-react-steps 3
+        #     cp -r results/ results_${platform}_${design}_${objective}/
+        # done
+        echo "Running optimization for next iteration..."
+
+        if [[ "$RUN_STAGE_OVERRIDE" -eq 1 ]]; then
+            echo "Applying explicit stage overrides before next iteration..."
+            run_stage_override
+        fi
+
+        if [[ "$RUN_STAGE_OPTIMIZE" -eq 1 ]]; then
+            echo "Requesting stage-level recommendations..."
+            run_stage_optimize
+        fi
+        
+        # python3 optimize.py "$platform" "$design" "$objective" "$PARALLEL_RUNS" 
+        # python3 optimize_rag.py "$platform" "$design" "$objective" "$PARALLEL_RUNS" 
+        # python3 optimize_react.py "$platform" "$design" "$objective" "$PARALLEL_RUNS" 
+        # python3 optimize_raw.py "$platform" "$design" "$objective" "$PARALLEL_RUNS" 
+        if [[ "$RUN_OPTIMIZE" -eq 1 ]]; then
+            echo "Running optimize_dual.py for additional refinement..."
+            python3 optimize_dual.py "$platform" "$design" "$objective" "$PARALLEL_RUNS"
+        fi
+    fi
+done
+
+echo "All iterations complete"
