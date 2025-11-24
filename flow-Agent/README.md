@@ -256,83 +256,12 @@ Each optimization run generates:
 Note that the results of the original paper were obtained with Claude-3.5 Sonnet and you *must* ensure that your key for replication and/or running of the tool can support frequent tool calls to the model.
 
 ## Experimental Results
-<table style="border-collapse:collapse; text-align:center; font-size:14px;" border="1" bordercolor="#1E4E9E" cellspacing="0" cellpadding="5">
-  <thead style="background-color:#f9f9f9; font-weight:bold;">
-    <tr>
-      <th rowspan="2">Tech</th>
-      <th rowspan="2">Circuit</th>
-      <th colspan="2">ORFS default<br>flow (no agent)</th>
-      <th colspan="2">ORFS-Agent with<br>deepseek api (baseline)</th>
-      <th colspan="2">RAG only</th>
-      <th colspan="2">ReAct only</th>
-      <th colspan="2">Both RAG and ReAct</th>
-    </tr>
-    <tr>
-      <th>WL</th><th>ECP*</th>
-      <th>WL</th><th>ECP*</th>
-      <th>WL</th><th>ECP*</th>
-      <th>WL</th><th>ECP*</th>
-      <th>WL</th><th>ECP*</th>
-    </tr>
-  </thead>
-  <tbody>
-    <tr>
-      <td rowspan="3">SKY130HD</td>
-      <td>IBEX</td>
-      <td>1082837</td><td>10.0</td>
-      <td></td><td></td>
-      <td></td><td></td>
-      <td></td><td></td>
-      <td></td><td></td>
-    </tr>
-    <tr>
-      <td>AES</td>
-      <td>806189</td><td>4.5</td>
-      <td></td><td></td>
-      <td></td><td></td>
-      <td></td><td></td>
-      <td></td><td></td>
-    </tr>
-    <tr>
-      <td>JPEG</td>
-      <td>2081529</td><td>8.0</td>
-      <td></td><td></td>
-      <td></td><td></td>
-      <td></td><td></td>
-      <td></td><td></td>
-    </tr>
-    <tr>
-      <td rowspan="3">ASAP7</td>
-      <td>IBEX</td>
-      <td>149253</td><td>1260</td>
-      <td></td><td></td>
-      <td></td><td></td>
-      <td></td><td></td>
-      <td></td><td></td>
-    </tr>
-    <tr>
-      <td>AES</td>
-      <td>113447</td><td>400</td>
-      <td>117369</td><td>389.09</td>
-      <td>101258</td><td>312.08</td>
-      <td>103820</td><td>484.85</td>
-      <td>96012</td><td>465.68</td>
-    </tr>
-    <tr>
-      <td>JPEG</td>
-      <td>391336</td><td>1100</td>
-      <td></td><td></td>
-      <td></td><td></td>
-      <td></td><td></td>
-      <td></td><td></td>
-    </tr>
-    <tr>
-      <td colspan="2">Average</td>
-      <td></td><td></td>
-      <td></td><td></td>
-      <td></td><td></td>
-      <td></td><td></td>
-      <td></td><td></td>
-    </tr>
-  </tbody>
-</table>
+| Tech     | Circuit | ORFS default flow (no agent) |        | ORFS-Agent with deepseek api (baseline) |        | RAG only |        | ReAct only |        | Both RAG and ReAct |        |
+|----------|---------|------------------------------|--------|------------------------------------------|--------|----------|--------|------------|--------|---------------------|--------|
+|          |         | WL                           | ECP*   | WL                                       | ECP*   | WL       | ECP*   | WL         | ECP*   | WL                  | ECP*   |
+| SKY130HD | JPEG    | **2081529**                  | 8.0    | 2279311                                  | 6.95   | 2290330  | 7.90   | 2303371    | 8.39   | 2229024             | 8.63   |
+|          | IBEX    | 1082837                      | 10.0   | 1180376                                  | 8.67   | 1121657  | 11.65  | 1044418    | 11.40  | **1044287**         | 9.49   |
+|          | AES     | 806189                       | 4.5    | 844290                                   | 4.69   | **774497** | 5.56   | 873581     | 3.63   | 831608              | 4.69   |
+| ASAP7    | IBEX    | 149253                       | 1260   | **138616**                                | 922.43 | 172498   | 891.37 | 140398     | 925.90 | 148624              | 1314.52 |
+|          | AES     | 113447                       | 400    | 117369                                   | 389.09 | 101258   | 312.08 | 103820     | 484.85 | **96012**           | 465.68 |
+
