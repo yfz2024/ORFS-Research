@@ -195,7 +195,7 @@ create_backup() {
     local platform=$1
     local design=$2
     local iteration=$3
-    local backup_dir="../result_dump_${iteration}"
+    local backup_dir="./backup_dir/${platform}/${design}/result_dump_${iteration}"
     
     echo "Creating backup for iteration ${iteration}..."
     mkdir -p "$backup_dir"
@@ -246,6 +246,7 @@ for i in $(seq 1 $TOTAL_ITERS); do
         for objective in "$objective"; do
             echo "Running optimization for $objective"
             python3 stage_optimize.py "$platform" "$design" "$objective" --max-react-steps 3
+            python3 stage_override.py "$platform" "$design" "$objective" 
             cp -r results/ results_${platform}_${design}_${objective}/
         done
         echo "Running optimization for next iteration..."
