@@ -311,7 +311,7 @@ class OptimizationWorkflow:
             prompt = (
                 f"**Stage: Inspect**\n"
                 "In this stage, we analyze the data from previous optimization runs to identify patterns, trends, and insights.\n\n"
-                f"Data to analyze:\n{json.dumps(data, indent=2)}\n\n"
+                f"Data to analyze:\n{json.dumps(data, indent=2, default=str)}\n\n"
                 "Please analyze the data and provide insights on:\n"
                 "1. Key patterns in successful vs unsuccessful runs.\n"
                 "2. Parameter ranges that appear promising.\n"
@@ -322,7 +322,7 @@ class OptimizationWorkflow:
             prompt = (
                 f"**Stage: Model**\n"
                 "In this stage, we decide how to model the optimization problem based on the data analysis.\n\n"
-                f"Data for modeling:\n{json.dumps(data, indent=2)}\n\n"
+                f"Data for modeling:\n{json.dumps(data, indent=2, default=str)}\n\n"
                 "Please suggest:\n"
                 "1. Appropriate modeling techniques.\n"
                 "2. Key parameters to focus on.\n"
@@ -341,8 +341,8 @@ class OptimizationWorkflow:
         else:
             prompt = (
                 f"**Stage: {stage.capitalize()}**\n"
-                f"Data:\n{json.dumps(data, indent=2)}\n\n"
-                "Please provide guidance based on the above data.\n"
+                f"Data:\n{json.dumps(data, indent=2, default=str)}\n\n"
+                "Please provide guidance based on the above data. Please be sure to call the tool to return the structured configuration.\n"
             )
 
         return prompt
@@ -352,8 +352,7 @@ class OptimizationWorkflow:
         print(f"\n=== Calling LLM for {stage} stage ===")
         
         # Hardcode API key
-        # anthropic_api_key = " "
-        
+        # anthropic_api_key=" "
         client = anthropic.Anthropic(api_key=os.environ.get("ANTHROPIC_API_KEY"))
         
         tools = [
@@ -476,7 +475,8 @@ class OptimizationWorkflow:
         print("Making LLM API call...")
         response = client.messages.create(
             model="claude-sonnet-4-5",
-            max_tokens=2048,
+            # max_tokens=2048,
+            max_tokens=4096,
             tools=tools,
             messages=[{
                 "role": "user",
@@ -496,6 +496,8 @@ class OptimizationWorkflow:
                     configs['model'] = block.input
                 elif block.name == 'configure_selection':
                     configs['selection'] = block.input
+            elif block.type == 'text':
+                print(f"LLM text reply: {block.text}")
 
         # Add default configs if missing
         for key, default in [
@@ -655,7 +657,7 @@ class OptimizationWorkflow:
                 log_data['summary']['failed_runs'] += 1
 
         return log_data
-
+    
     # def inspect_logs(self) -> Dict[str, Any]:
     #     """Step 1: Inspect all logs so far"""
     #     log_dir = f"logs/{self.platform}/{self.design}"
