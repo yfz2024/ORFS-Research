@@ -60,6 +60,7 @@ The ORFS-Agent consists of several key components:
 - **`rag/`**：Contains the relevant code and configuration files of the RAG framework and is used to implement the 
 - **`rag_data/`**：Stores retrieval databases, design logs, error samples, and knowledge index files.
 - **`models/`**：Stores trained models, vectorized weights, and embedding files to support model inference and knowledge retrieval.
+- **`comparison/`**：Contains baseline code to be compared.
 
 ### Relevant Execution Scripts
 
