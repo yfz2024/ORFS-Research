@@ -256,12 +256,73 @@ Each optimization run generates:
 Note that the results of the original paper were obtained with Claude-3.5 Sonnet and you *must* ensure that your key for replication and/or running of the tool can support frequent tool calls to the model.
 
 ## Experimental Results
-| Tech     | Circuit | ORFS default flow (no agent) |        | ORFS-Agent with deepseek api (baseline) |        | RAG only |        | ReAct only |        | Both RAG and ReAct |        |
-|----------|---------|------------------------------|--------|------------------------------------------|--------|----------|--------|------------|--------|---------------------|--------|
-|          |         | WL                           | ECP*   | WL                                       | ECP*   | WL       | ECP*   | WL         | ECP*   | WL                  | ECP*   |
-| SKY130HD | JPEG    | **2081529**                  | 8.0    | 2279311                                  | 6.95   | 2290330  | 7.90   | 2303371    | 8.39   | 2229024             | 8.63   |
-|          | IBEX    | 1082837                      | 10.0   | 1180376                                  | 8.67   | 1121657  | 11.65  | 1044418    | 11.40  | **1044287**         | 9.49   |
-|          | AES     | 806189                       | 4.5    | 844290                                   | 4.69   | **774497** | 5.56   | 873581     | 3.63   | 831608              | 4.69   |
-| ASAP7    | IBEX    | 149253                       | 1260   | **138616**                                | 922.43 | 172498   | 891.37 | 140398     | 925.90 | 148624              | 1314.52 |
-|          | AES     | 113447                       | 400    | 117369                                   | 389.09 | 101258   | 312.08 | 103820     | 484.85 | **96012**           | 465.68 |
+Iterate for 20 rounds, parallelize 4 tasks, 12 optimization params, api=deepseek-V3, and only optimize DWL:
+<table border="1" cellspacing="0" cellpadding="6">
+  <tr>
+    <th rowspan="2">Tech</th>
+    <th rowspan="2">Circuit</th>
+    <th colspan="2">ORFS default flow<br>(no agent)</th>
+    <th colspan="2">ORFS-Agent with<br>deepseek api (baseline)</th>
+    <th colspan="2">RAG only</th>
+    <th colspan="2">ReAct only</th>
+    <th colspan="2">Both RAG and ReAct</th>
+  </tr>
+
+  <tr>
+    <th>WL</th><th>ECP*</th>
+    <th>WL</th><th>ECP*</th>
+    <th>WL</th><th>ECP*</th>
+    <th>WL</th><th>ECP*</th>
+    <th>WL</th><th>ECP*</th>
+  </tr>
+
+  <!-- SKY130HD -->
+  <tr>
+    <td rowspan="3">SKY<br>130HD</td>
+    <td>JPEG</td>
+    <td><b style="color:red;">2081529</b></td><td>8.0</td>
+    <td>2279311</td><td>6.95</td>
+    <td>2290330</td><td>7.90</td>
+    <td>2303371</td><td>8.39</td>
+    <td>2229024</td><td>8.63</td>
+  </tr>
+
+  <tr>
+    <td>IBEX</td>
+    <td>1082837</td><td>10.0</td>
+    <td>1180376</td><td>8.67</td>
+    <td>1121657</td><td>11.65</td>
+    <td>1044418</td><td>11.40</td>
+    <td><b style="color:red;">1044287</b></td><td>9.49</td>
+  </tr>
+
+  <tr>
+    <td>AES</td>
+    <td>806189</td><td>4.5</td>
+    <td>844290</td><td>4.69</td>
+    <td><b style="color:red;">774497</b></td><td>5.56</td>
+    <td>873581</td><td>3.63</td>
+    <td>831608</td><td>4.69</td>
+  </tr>
+
+  <!-- ASAP7 -->
+  <tr>
+    <td rowspan="2">ASAP7</td>
+    <td>IBEX</td>
+    <td>149253</td><td>1260</td>
+    <td><b style="color:red;">138616</b></td><td>922.43</td>
+    <td>172498</td><td>891.37</td>
+    <td>140398</td><td>925.90</td>
+    <td>148624</td><td>1314.52</td>
+  </tr>
+
+  <tr>
+    <td>AES</td>
+    <td>113447</td><td>400</td>
+    <td>117369</td><td>389.09</td>
+    <td>101258</td><td>312.08</td>
+    <td>103820</td><td>484.85</td>
+    <td><b style="color:red;">96012</b></td><td>465.68</td>
+  </tr>
+</table>
 
