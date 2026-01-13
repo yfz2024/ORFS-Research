@@ -1,11 +1,11 @@
 #!/bin/bash
 
 # Default values
-TOTAL_ITERS=20
-PARALLEL_RUNS=4
-TIMEOUT="45m"
-TOTAL_CPUS=8
-TOTAL_RAM=16
+TOTAL_ITERS=10
+PARALLEL_RUNS=10
+TIMEOUT="120m"
+TOTAL_CPUS=100
+TOTAL_RAM=200
 ECP_WEIGHT=0.5
 WL_WEIGHT=0.5
 ECP_WEIGHT_SURROGATE=0.5
@@ -80,6 +80,16 @@ if [[ "$objective" != "ECP" && "$objective" != "DWL" && "$objective" != "COMBO" 
     echo "Error: objective must be one of: ECP, DWL, COMBO"
     exit 1
 fi
+
+LOG_NAME="experiment_${platform}_${design}_$(date +%m%d_%H%M).md"
+
+exec > >(tee -a "$LOG_NAME") 2>&1
+
+echo "# EDA Optimization Log"
+echo "Start Time: $(date)"
+echo "Objective: $objective | Platform: $platform | Design: $design"
+echo "-------------------------------------------"
+echo ""
 
 # Validate weights sum to 1
 export PLATFORM=$platform
@@ -195,9 +205,9 @@ create_backup() {
     local platform=$1
     local design=$2
     local iteration=$3
-    local backup_dir="./backup_dir/${platform}/${design}/result_dump_${iteration}"
+    local backup_dir="./backup_dir/${platform}/${design}/result_dump_${iteration}"        
     
-    echo "Creating backup for iteration ${iteration}..."
+    echo "Creating backup for iteration ${iteration}..."    
     mkdir -p "$backup_dir"
     
     # Move config and constraint files
@@ -227,11 +237,8 @@ for i in $(seq 1 $TOTAL_ITERS); do
     echo "Starting iteration $i of $TOTAL_ITERS"
     
     # Run sequential phase
-    # echo '"$platform" "$design" "$PARALLEL_RUNS" "$i"'
-    echo "${platform}, ${design}, ${PARALLEL_RUNS}, ${i}"
     ./run_sequential.sh "$platform" "$design" "$PARALLEL_RUNS" "$i"
     echo "./run_sequential.sh \"$platform\" \"$design\" \"$PARALLEL_RUNS\" \"$i\""
-    
     # Run parallel phase with timeout
     timeout "$TIMEOUT" ./run_parallel.sh "$platform" "$design" "$PARALLEL_RUNS" || true
     
@@ -243,16 +250,20 @@ for i in $(seq 1 $TOTAL_ITERS); do
     
     # Generate constraints for next iteration (skip for last iteration)
     if [ "$i" -lt "$TOTAL_ITERS" ]; then
-        for objective in "$objective"; do
-            echo "Running optimization for $objective"
-            python3 stage_optimize.py "$platform" "$design" "$objective" --max-react-steps 3
-            python3 stage_override.py "$platform" "$design" "$objective" 
-            cp -r results/ results_${platform}_${design}_${objective}/
-        done
         echo "Running optimization for next iteration..."
         python3 optimize.py "$platform" "$design" "$objective" "$PARALLEL_RUNS" 
-        echo "python3 optimize.py \"$platform\" \"$design\" \"$PARALLEL_RUNS\" \"$i\""
+        echo "python3 optimize.py \"$platform\" \"$design\" \"$objective\" \"$PARALLEL_RUNS\" \"$i\""
     fi
+
+    # # Create backup of this iteration's results
+    # create_backup "$platform" "$design" "$i"
+
 done
+
+# Post-processing: extract metrics, count stats, and plot envelopes
+metrics_md="output_results/${platform}_${design}_${objective}_metrics.md"
+python3 extract_metrics.py -i "backup_dir/${platform}/${design}" -o "$metrics_md"
+python3 count.py --detailed "$metrics_md" -o "$objective"
+python3 print.py "$metrics_md" -o "$objective"
 
 echo "All iterations complete"
