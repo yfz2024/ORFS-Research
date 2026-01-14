@@ -33,6 +33,7 @@ for pkg in ["anthropic", "sentence_transformers", "torch", "openai"]:
 
 def process_log_file(log_path: str) -> Dict[str, Any]:
     """Process a single log file to extract relevant metrics"""
+    print(f"[DEBUG] Processing log file: {log_path}")
     run_data = {
         'file': os.path.basename(log_path),
         'success': False,
@@ -192,8 +193,8 @@ class OptimizationWorkflow:
 
         # [TextGrad Integration] 1. Convert static Prompts into Optimizable State Variables
         self.tool_instructions = {
-            'inspect': (
-                f"**Stage: Inspect**\n"
+            'inspection': (
+                f"**Stage: Inspection**\n"
                 "In this stage, we analyze the data from previous optimization runs to identify patterns, trends, and insights.\n\n"
                 "Please analyze the data and provide insights on:\n"
                 "1. Key patterns in successful vs unsuccessful runs.\n"
@@ -213,8 +214,8 @@ class OptimizationWorkflow:
                 "4. Acquisition function choices.\n"
             ),
             
-            'agglomerate': (
-                f"**Stage: Agglomerate**\n"
+            'selection': (
+                f"**Stage: Selection**\n"
                 "In this stage, we generate new parameter combinations to explore in the next optimization runs.\n\n"
                 "Please provide a list of new parameter sets to try, ensuring they respect the domain constraints below.\n\n"
                 "Each parameter set should be a dictionary with parameter names and their suggested values.\n"
@@ -455,32 +456,32 @@ class OptimizationWorkflow:
             param_range = info['range']
             constraints_text += f"- {param} ({param_type}, range: {param_range})\n"
 
-        # stage_descriptions = {
-        #     'inspect': (
-        #         "You are an expert EDA optimization analyst. Analyze the optimization run data to identify patterns "
-        #         "and insights. Use the available tools to examine data distributions, correlations, and successful "
-        #         "parameter ranges. Your goal is to understand what makes runs successful and provide recommendations "
-        #         "for the modeling stage."
-        #     ),
-        #     'model': (
-        #         "You are an expert machine learning engineer for EDA optimization. Based on the inspection results, "
-        #         "configure the modeling approach for Bayesian optimization. Consider kernel selection, acquisition "
-        #         "functions, and surrogate modeling strategies. Balance exploration and exploitation based on the data."
-        #     ),
-        #     'agglomerate': (
-        #         "You are an expert parameter optimization specialist. Generate new parameter combinations for the "
-        #         "next optimization iteration. Use insights from previous stages to focus on promising regions while "
-        #         "maintaining diversity. Ensure all parameters satisfy the domain constraints."
-        #     )
-        # }
+        stage_descriptions = {
+            '[stage_descriptions] inspection': (
+                "You are an expert EDA optimization analyst. Analyze the optimization run data to identify patterns "
+                "and insights. Use the available tools to examine data distributions, correlations, and successful "
+                "parameter ranges. Your goal is to understand what makes runs successful and provide recommendations "
+                "for the modeling stage."
+            ),
+            '[stage_descriptions] model': (
+                "You are an expert machine learning engineer for EDA optimization. Based on the inspection results, "
+                "configure the modeling approach for Bayesian optimization. Consider kernel selection, acquisition "
+                "functions, and surrogate modeling strategies. Balance exploration and exploitation based on the data."
+            ),
+            '[stage_descriptions] selection': (
+                "You are an expert parameter optimization specialist. Generate new parameter combinations for the "
+                "next optimization iteration. Use insights from previous stages to focus on promising regions while "
+                "maintaining diversity. Ensure all parameters satisfy the domain constraints."
+            )
+        }
     
-        # data_context = ""
-        # if stage == 'inspect':
-        #      data_context = f"\n[data_context] Data to analyze:\n{json.dumps(data, indent=2, default=str)}\n"
-        # elif stage == 'model':
-        #      data_context = f"\n[data_context] Data for modeling:\n{json.dumps(data, indent=2, default=str)}\n"
-        # elif stage == 'agglomerate':
-        #      data_context = f"\n[data_context] Domain Constraints to respect:\n{constraints_text}\n"
+        data_context = ""
+        if stage == 'inspection':
+             data_context = f"\n[data_context] Data to analyze:\n{json.dumps(data, indent=2, default=str)}\n"
+        elif stage == 'model':
+             data_context = f"\n[data_context] Data for modeling:\n{json.dumps(data, indent=2, default=str)}\n"
+        elif stage == 'selection':
+             data_context = f"\n[data_context] Domain Constraints to respect:\n{constraints_text}\n"
 
         # stage_contexts = {
         #     'inspect': (
@@ -496,7 +497,7 @@ class OptimizationWorkflow:
         #     constraints_text += f"- {param} ({info['type']}, range: {info['range']})\n"
 
         constraints_text += (
-            "\nParameter Notes:\n"
+            "\n[constraints_text] Parameter Notes:\n"
             "- cell_pad_global: The cell spacing during global routing/placement: smaller spacing saves area but increases congestion; if frequent congestion/routing DRC errors occur, the spacing can be increased accordingly; however, if area/timing constraints are tight, the spacing should be kept as small as possible.\n"
             "- cell_pad_detail: The cell spacing during the detailed placement stage is similar to that of the global placement; it can be increased if there is layout congestion or detailed routing failure, and decreased when aiming for shorter connections or smaller area.\n"
             "- constraints: the value of cell_pad_detail cannot be greater than the value of cell_pad_global.\n"
@@ -504,8 +505,17 @@ class OptimizationWorkflow:
 
         prompt = f"""**stages:{stage.upper()}**
 
-        {self.tool_instructions.get(stage, '')}
+        **Current Stage**: {stage.upper()}
+        **Objective**: {self.objective}
+        **Platform**: {self.platform}
+        **Design**: {self.design}
 
+        {stage_descriptions[stage]}
+        {data_context}
+        {constraints_text}
+
+        {self.tool_instructions.get(stage, '')}
+        
         **Important: Use **tool calls only**, and generate text responses!**
         """
 
@@ -518,106 +528,6 @@ class OptimizationWorkflow:
         Please prioritize these supervisor notes when making decisions in this stage.
         """
             print("[SUPERVISOR][DEBUG] Added supervisor feedback into prompt.")
-
-        # ========= Splicing RAG  =========
-        # rag_context = ""
-        # if self.rag_model is not None and self.rag_embeddings is not None:
-        #     try:
-        #         print("[DEBUG] RAG: Starting retrieval...")
-
-        #         # --------------------------------------------------
-        #         # Step 1: Extract recent error information
-        #         # --------------------------------------------------
-        #         error_summary = ""
-        #         if "log_data" in data:
-        #             all_errors = []
-        #             for run in data["log_data"].get("runs", []):
-        #                 if run.get("errors"):
-        #                     all_errors.extend(run["errors"])
-
-        #             if all_errors:
-        #                 top_errors = all_errors[-3:]
-        #                 error_summary = "\n".join(top_errors)
-        #                 print(f"[DEBUG] Detected {len(all_errors)} error messages. Sample:\n{error_summary}")
-
-        #         # --------------------------------------------------
-        #         # Step 2: Construct RAG query
-        #         # --------------------------------------------------
-        #         if error_summary:
-        #             query = (
-        #                 f"Stage: {stage}. Objective: {self.objective}. "
-        #                 f"The recent optimization runs failed with errors:\n{error_summary}\n\n"
-        #                 "Retrieve relevant OpenROAD documentation, known failure modes, and "
-        #                 "potential parameter tuning suggestions that may fix these issues."
-        #             )
-        #         else:
-        #             query = (
-        #                 f"Stage: {stage}. Objective: {self.objective}. "
-        #                 f"Focus on analyzing {stage}-related optimization results. "
-        #                 f"Important metrics include wirelength, timing, area, and success rate. "
-        #                 f"Find relevant OpenROAD documentation, parameter tuning guides, and failure pattern examples."
-        #             )
-
-        #         # --------------------------------------------------
-        #         # Step 3: Execute RAG search
-        #         # --------------------------------------------------
-        #         rag_result = answerWithRAG(
-        #             query,
-        #             self.rag_embeddings,
-        #             self.rag_model,
-        #             self.rag_docs,
-        #             self.rag_docsDict
-        #         )
-
-        #         retrieved_sections = []
-        #         print("[DEBUG] rag_result type:", type(rag_result))
-        #         print("[DEBUG] rag_result content:", rag_result)
-
-        #         # --------------------------------------------------
-        #         # Step 4: Select top-K most relevant docs
-        #         # --------------------------------------------------
-        #         docs = []
-        #         if isinstance(rag_result, dict):
-        #             docs = rag_result.get("docs", [])
-        #         elif isinstance(rag_result, list):
-        #             docs = rag_result
-        #         elif isinstance(rag_result, str):
-        #             print("[WARN] RAG returned string output, not structured docs.")
-
-        #         if docs:
-        #             docs = sorted(docs, key=lambda d: d.get("score", 0.0), reverse=True)
-
-        #             TOP_K = 3
-        #             MAX_CHARS_PER_DOC = 300  
-
-        #             for idx, doc in enumerate(docs[:TOP_K], 1):
-        #                 content = doc.get("content", "").strip()
-        #                 excerpt = content[:MAX_CHARS_PER_DOC]
-
-        #                 section = (
-        #                     f"[Doc {idx} | score={doc.get('score', 0.0):.3f} | "
-        #                     f"source={doc.get('source', 'unknown')}]\n"
-        #                     f"{excerpt}"
-        #                 )
-        #                 retrieved_sections.append(section)
-
-        #             print(f"[DEBUG] RAG: Selected top-{len(retrieved_sections)} documents.")
-
-        #         # --------------------------------------------------
-        #         # Step 5: Inject controlled RAG context into prompt
-        #         # --------------------------------------------------
-        #         if retrieved_sections:
-        #             prompt += (
-        #                 "\n\n=== Retrieved OpenROAD Documentation (Top-K via RAG) ===\n"
-        #                 + "\n\n".join(retrieved_sections)
-        #                 + "\n=============================================="
-        #             )
-        #             print("[DEBUG] RAG: Context successfully added to prompt.")
-        #         else:
-        #             print("[DEBUG] RAG: No relevant documents retrieved.")
-
-        #     except Exception as e:
-        #         prompt += f"\n\n[WARN] RAG retrieval failed: {e}"
 
         rag_context = ""
         if self.rag_model is not None and self.rag_embeddings is not None:
@@ -641,14 +551,14 @@ class OptimizationWorkflow:
                 if error_summary:
                     query = (
                         f"Stage: {stage}. Objective: {self.objective}. "
-                        f"The recent optimization runs failed with errors:\n{error_summary}\n\n"
+                        f"[RAG query] The recent optimization runs failed with errors:\n{error_summary}\n\n"
                         "Retrieve relevant OpenROAD documentation, known failure modes, and "
                         "potential parameter tuning suggestions that may fix these issues."
                     )
                 else:
                     query = (
                         f"Stage: {stage}. Objective: {self.objective}. "
-                        f"Focus on analyzing {stage}-related optimization results. "
+                        f"[RAG query] Focus on analyzing {stage}-related optimization results. "
                         f"Important metrics include wirelength, timing, area, and success rate. "
                         f"Find relevant OpenROAD documentation, parameter tuning guides, and failure pattern examples."
                     )
@@ -675,7 +585,7 @@ class OptimizationWorkflow:
                 if retrieved_text.strip():
                     prompt += (
                         "\n\n=== Retrieved OpenROAD Documentation (via RAG) ===\n"
-                        f"{retrieved_text[:10]}\n"
+                        f"{retrieved_text[:500]}\n"
                         "=============================================="
                     )
                     print("[DEBUG] RAG: Context successfully added to prompt.")
@@ -698,19 +608,23 @@ class OptimizationWorkflow:
         {error_summary}
 
         The model must now act as an **EDA Debugging Assistant**.
-        Using the retrieved documentation and knowledge, analyze the errors above and provide a short explanation for each suggestion.
+        Using the retrieved documentation and knowledge, analyze the errors above and:
+        1. Identify the root causes of each error (e.g., tool misconfiguration, parameter overflow, timing issues, etc.)
+        2. Suggest **specific parameter changes or flow adjustments** to prevent these errors.
+        3. Indicate whether the error is likely due to constraints, routing congestion, or timing margin.
+        4. Provide a short explanation for each suggestion.
 
+        Output format:
+        Error Diagnosis:
+        - Root Cause: ...
+        - Recommended Fix: ...
+        - Suggested Parameter Change: ...
+        - Reason: ...
         """
                 print("[DEBUG] Added error-fix section to prompt.")      
         return prompt
         
-        # **Current Stage**: {stage.upper()}
-        # **Objective**: {self.objective}
-        # **Platform**: {self.platform}
-        # **Design**: {self.design}
 
-        # {stage_descriptions[stage]}
-        # {constraints_text}
         # {data_context}
         # {stage_contexts.get(stage, '')}
 
@@ -719,18 +633,6 @@ class OptimizationWorkflow:
         # - Successful runs: {data.get('log_data', {}).get('summary', {}).get('successful_runs', 0)}
         # - Failed runs: {data.get('log_data', {}).get('summary', {}).get('failed_runs', 0)}
 
-        # Using the retrieved documentation and knowledge, analyze the errors above and:
-        # 1. Identify the root causes of each error (e.g., tool misconfiguration, parameter overflow, timing issues, etc.)
-        # 2. Suggest **specific parameter changes or flow adjustments** to prevent these errors.
-        # 3. Indicate whether the error is likely due to constraints, routing congestion, or timing margin.
-        # 4. Provide a short explanation for each suggestion.
-
-        # Output format:
-        # Error Diagnosis:
-        # - Root Cause: ...
-        # - Recommended Fix: ...
-        # - Suggested Parameter Change: ...
-        # - Reason: ...
 
     def _collect_recent_errors(self, data: Dict[str, Any], max_errors=5) -> str:
         errors = []
@@ -846,7 +748,7 @@ class OptimizationWorkflow:
         ]
 
         # Get data summaries
-        if stage == 'inspect':
+        if stage == 'inspection':
             print("Generating data distribution and structure summaries...")
             # Extract X and Y from successful runs if available
             print("=== DEBUG: Checking data structure ===")
@@ -905,7 +807,7 @@ class OptimizationWorkflow:
             tools=tools,
             tool_choice="auto",
             # stream=True,
-            max_tokens=32000,
+            max_tokens=4096,
             temperature=0.1,
             # top_p=0.8,
             # extra_body={
@@ -982,20 +884,20 @@ class OptimizationWorkflow:
         
         # Get LLM recommendations for inspection and analysis
         print("\nGetting LLM recommendations for inspection...")
-        inspect_configs = self._call_llm('inspect', {
+        inspection_configs = self._call_llm('inspection', {
             'log_data': log_data,
             'initial_params': self.initial_params,
             'sdc_context': self.sdc_context
         })
-        inspection_config = inspect_configs.get('inspect', {})
+        inspection_config = inspection_configs.get('inspection', {})
         print(f"LLM inspection config: {inspection_config}")
         
         # Step 2: Analyze metrics with LLM config
         print("\nStep 2: Analyzing metrics...")
         metrics = self.analyze_metrics(
             log_data, 
-            n_clusters=inspect_configs['inspection']['n_clusters'],
-            correlation_threshold=inspect_configs['inspection']['correlation_threshold']
+            n_clusters=inspection_configs['inspection']['n_clusters'],
+            correlation_threshold=inspection_configs['inspection']['correlation_threshold']
         )
         print(f"Processed metrics for {len(metrics.get('objectives', []))} successful runs")
         
@@ -1006,7 +908,7 @@ class OptimizationWorkflow:
             'metrics': metrics,
             'initial_params': self.initial_params,
             'sdc_context': self.sdc_context,
-            'inspection_results': inspect_configs
+            'inspection_results': inspection_configs
         })
         model_config = model_configs.get('model', {})
         print(f"LLM model config:  {model_config}")
@@ -1027,16 +929,16 @@ class OptimizationWorkflow:
         
         # Get LLM recommendations for parameter selection based on all previous results
         print("\nGetting LLM recommendations for parameter selection...")
-        selection_configs = self._call_llm('agglomerate', {
+        selection_configs = self._call_llm('selection', {
             'log_data': log_data,
             'metrics': metrics,
             'model_results': model_results,
             'initial_params': self.initial_params,
             'sdc_context': self.sdc_context,
-            'inspection_results': inspect_configs,
+            'inspection_results': inspection_configs,
             'model_configs': model_configs
         })
-        selection_config = selection_configs.get('agglomerate', {})
+        selection_config = selection_configs.get('selection', {})
         print(f"LLM selection config: {selection_config}")
         
         # Step 4: Generate parameters with LLM config
@@ -1069,7 +971,7 @@ class OptimizationWorkflow:
             # Here we assume we need to optimize the Prompt in the 'agglomerate' stage, as this is crucial for parameter generation.
             # You can also intelligently decide which stage to optimize based on the feedback content.
             print("[TextGrad] Backpropagating feedback to Agent Prompts...")
-            self._optimize_prompt_with_textgrad('agglomerate', supervisor_feedback)
+            self._optimize_prompt_with_textgrad('selection', supervisor_feedback)
             self._optimize_prompt_with_textgrad('model', supervisor_feedback)
         else:
             print("[SUPERVISOR] No feedback or final iteration; skipping optimization.")        
@@ -1092,7 +994,7 @@ class OptimizationWorkflow:
 
         supervisor_prompt = (
             "You are the supervisor model for an EDA optimization agent.\n"
-            "The primary agent just finished an inspect-optimize-agglomerate flow.\n"
+            "The primary agent just finished an inspection-model-selection flow.\n"
             "Provide concise feedback (<=300 words) to guide the next flow. "
             "Focus on:\n"
             "1) What to adjust in inspection/model/selection configs,\n"
