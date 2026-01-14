@@ -50,7 +50,7 @@ def process_log_file(log_path: str) -> Dict[str, Any]:
         run_data['metrics'].update(timing_metrics)
         
         # Extract wirelength information
-        wl_metrics = extract_wirelength_metrics(content, log_path)
+        wl_metrics = extract_wirelength_metrics(content)
         run_data['metrics'].update(wl_metrics)
         
         # Extract any errors
@@ -97,53 +97,78 @@ def extract_timing_metrics(log_content: str) -> Dict[str, float]:
         
     return metrics
 
-def extract_wirelength_metrics(log_content: str, log_path: Optional[str] = None) -> Dict[str, float]:
+import re
+from typing import Dict
+
+def extract_wirelength_metrics(log_content: str) -> Dict[str, float]:
+    """Extract wirelength-related metrics from log content"""
     metrics = {}
-    # Prefer detailed route JSON: ./logs/<platform>/<design>/base_i/5_2_route.json
-    if log_path:
-        base_dir = Path(log_path).parent
-        route_json = None
-
-        # log_path 可能在 logs/<p>/<d>/ 或 logs/<p>/<d>/base_i/，统一定位 base_i
-        if base_dir.name.startswith("base_"):
-            route_json = base_dir / "5_2_route.json"
-        else:
-            # 找到包含 base_* 的子目录
-            for p in base_dir.iterdir() if base_dir.is_dir() else []:
-                if p.is_dir() and p.name.startswith("base_"):
-                    candidate = p / "5_2_route.json"
-                    if candidate.exists():
-                        route_json = candidate
-                        break
-            # 再向上查找父目录中的 base_*
-            if route_json is None:
-                parents_base = [p for p in base_dir.parents if p.name.startswith("base_")]
-                if parents_base:
-                    route_json = parents_base[0] / "5_2_route.json"
-                else:
-                    route_json = base_dir / "5_2_route.json"
-
-        if route_json.exists():
-            try:
-                with open(route_json, "r") as jf:
-                    route_data = json.load(jf)
-                wl = route_data.get("detailedroute__route__wirelength")
-                if wl is not None:
-                    metrics["total_wirelength"] = float(wl)
-                    print(f"[WIRE] Using detailed route wirelength from {route_json}")
-                else:
-                    print(f"[WIRE] {route_json} found but no detailedroute__route__wirelength key")
-            except Exception as e:
-                print(f"[WARN] Failed to read wirelength from {route_json}: {e}")
-
-    # Fall back to log parsing if JSON not available
-    if "total_wirelength" not in metrics:
-        wl_match = re.search(r'Total wirelength: ([\d.]+)', log_content)
-        if wl_match:
-            metrics['total_wirelength'] = float(wl_match.group(1))
-            print(f"[WIRE] Fallback to CTS wirelength from log")
-
+    
+    pattern = r'\[INFO DRT-0198\] Complete detail routing\..*?Total wire length\s*=\s*([\d.]+)'
+    
+    wl_match = re.search(pattern, log_content, re.DOTALL)
+    
+    if wl_match:
+        metrics['total_wirelength'] = float(wl_match.group(1))
+    else:
+        print("Warning: DRT-0198 specific wirelength not found. Fallback to CTS wirelength from log")
+        
+    # Extract estimated wirelength after CTS (保持不变)
+    cts_wl_match = re.search(r'Total wirelength: ([\d.]+)', log_content)
+    if cts_wl_match:
+        metrics['cts_wirelength'] = float(cts_wl_match.group(1))
+        
     return metrics
+
+# def extract_wirelength_metrics(log_content: str, log_path: Optional[str] = None) -> Dict[str, float]:
+#     metrics = {}
+#     # Prefer detailed route JSON: ./logs/<platform>/<design>/base_i/5_2_route.json
+#     if log_path:
+#         base_dir = Path(log_path).parent
+#         route_json = None
+
+#         # log_path 可能在 logs/<p>/<d>/ 或 logs/<p>/<d>/base_i/，统一定位 base_i
+#         if base_dir.name.startswith("base_"):
+#             route_json = base_dir / "5_2_route.json"
+#         else:
+#             # 找到包含 base_* 的子目录
+#             for p in base_dir.iterdir() if base_dir.is_dir() else []:
+#                 if p.is_dir() and p.name.startswith("base_"):
+#                     candidate = p / "5_2_route.json"
+#                     if candidate.exists():
+#                         route_json = candidate
+#                         break
+#             # 再向上查找父目录中的 base_*
+#             if route_json is None:
+#                 parents_base = [p for p in base_dir.parents if p.name.startswith("base_")]
+#                 if parents_base:
+#                     route_json = parents_base[0] / "5_2_route.json"
+#                 else:
+#                     route_json = base_dir / "5_2_route.json"
+
+#         if route_json.exists():
+#             try:
+#                 with open(route_json, "r") as jf:
+#                     route_data = json.load(jf)
+#                 wl = route_data.get("detailedroute__route__wirelength")
+#                 if wl is not None:
+#                     metrics["total_wirelength"] = float(wl)
+#                     print(f"[WIRE] Using detailed route wirelength from {route_json}")
+#                 else:
+#                     print(f"[WIRE] {route_json} found but no detailedroute__route__wirelength key")
+#             except Exception as e:
+#                 print(f"[WARN] Failed to read wirelength from {route_json}: {e}")
+
+#     # Fall back to log parsing if JSON not available
+#     if "total_wirelength" not in metrics:
+#         wl_match = re.search(r'Total wirelength: ([\d.]+)', log_content)
+#         if wl_match:
+#             metrics['total_wirelength'] = float(wl_match.group(1))
+#             print(f"[WIRE] Fallback to CTS wirelength from log")
+
+#     return metrics
+
+
 
 def extract_errors(log_content: str) -> List[str]:
     """Extract error messages from log content"""
@@ -457,19 +482,19 @@ class OptimizationWorkflow:
             constraints_text += f"- {param} ({param_type}, range: {param_range})\n"
 
         stage_descriptions = {
-            '[stage_descriptions] inspection': (
-                "You are an expert EDA optimization analyst. Analyze the optimization run data to identify patterns "
+            'inspection': (
+                "[stage_descriptions] You are an expert EDA optimization analyst. Analyze the optimization run data to identify patterns "
                 "and insights. Use the available tools to examine data distributions, correlations, and successful "
                 "parameter ranges. Your goal is to understand what makes runs successful and provide recommendations "
                 "for the modeling stage."
             ),
-            '[stage_descriptions] model': (
-                "You are an expert machine learning engineer for EDA optimization. Based on the inspection results, "
+            'model': (
+                "[stage_descriptions] You are an expert machine learning engineer for EDA optimization. Based on the inspection results, "
                 "configure the modeling approach for Bayesian optimization. Consider kernel selection, acquisition "
                 "functions, and surrogate modeling strategies. Balance exploration and exploitation based on the data."
             ),
-            '[stage_descriptions] selection': (
-                "You are an expert parameter optimization specialist. Generate new parameter combinations for the "
+            'selection': (
+                "[stage_descriptions] You are an expert parameter optimization specialist. Generate new parameter combinations for the "
                 "next optimization iteration. Use insights from previous stages to focus on promising regions while "
                 "maintaining diversity. Ensure all parameters satisfy the domain constraints."
             )
