@@ -14,12 +14,12 @@ def test_rag(query):
     print("=" * 60)
 
     # Make sure RAGData exists
-    if not os.path.exists("rag_date"):
-        os.makedirs("rag_date", exist_ok=True)
+    if not os.path.exists("rag_data"):
+        os.makedirs("rag_data", exist_ok=True)
 
     # Step 1: Build if the embeddings do not exist
-    emb_path = os.path.join("rag_date", "embeddings.npy")
-    docs_path = os.path.join("rag_date", "docs.pkl")
+    emb_path = os.path.join("rag_data", "embeddings.npy")
+    docs_path = os.path.join("rag_data", "docs.pkl")
 
     if not os.path.exists(emb_path) or not os.path.exists(docs_path):
         print("[INFO] Embeddings not found, building new ones...")
