@@ -12,12 +12,12 @@ EMB_PATH = os.path.join(DATA_DIR, "embeddings.npy")
 DOCS_PATH = os.path.join(DATA_DIR, "docs.pkl")
 
 # 默认模型路径（可修改）
-DEFAULT_MODEL_PATH = "/mnt/c/Users/Public/OpenROAD-flow-scripts/orfs-agent/models/mxbai-embed-large-v1"
+DEFAULT_MODEL_PATH = "/scripts/ORFS-Research/flow-Agent/models/mxbai-embed-large-v1"
 
 # ============================================================
 # 🔹 构建并保存 Embedding 向量库
 # ============================================================
-def build_and_save_embeddings(base_dir="/mnt/e/OpenROAD-flow-scripts/orfs-agent/EDA-Corpus-main/Augmented_Data/Question-Answer",
+def build_and_save_embeddings(base_dir="/scripts/ORFS-Research/flow-Agent/EDA-Corpus-main/Augmented_Data/Question-Answer",
                               model_name=DEFAULT_MODEL_PATH):
     """
     从 Flow / General / Tools 三个 CSV 构建向量库并保存。
