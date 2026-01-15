@@ -7,7 +7,7 @@ from .util import load_multiple_qa_files, prepareDocuments
 
 # 数据与模型路径
 BASE_DIR = os.path.dirname(__file__)
-DATA_DIR = os.path.join(BASE_DIR, "..", "rag_date")
+DATA_DIR = os.path.join(BASE_DIR, "..", "rag_data")
 EMB_PATH = os.path.join(DATA_DIR, "embeddings.npy")
 DOCS_PATH = os.path.join(DATA_DIR, "docs.pkl")
 
