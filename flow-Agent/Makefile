@@ -324,7 +324,6 @@ endif
 
 .PHONY: do-$(1)
 do-$(1): $(OBJECTS_DIR)/copyright.txt
-	$(SCRIPTS_DIR)/flow.sh $(1) $(3)
 	@mkdir -p $(RESULTS_DIR) $(LOG_DIR) $(REPORTS_DIR) $(OBJECTS_DIR)
 	@echo Running $(3).tcl, stage $(1)
 	@(set -eo pipefail; \
