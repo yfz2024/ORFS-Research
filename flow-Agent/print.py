@@ -3,6 +3,7 @@ import pandas as pd
 import matplotlib.pyplot as plt
 import re
 import sys
+import os
 
 def extract_table(file_content: str) -> pd.DataFrame:
     """
@@ -157,7 +158,7 @@ def plot_envelope(df_breakpoints: pd.DataFrame, ylabel: str, filename: str, mode
     plt.tight_layout()
     
     # 生成输出文件名
-    base_name = filename.split("/")[-1].rsplit('.', 1)[0]
+    base_name = os.path.splitext(filename)[0] 
     out = f"{base_name}_{mode}_envelope.png"
     plt.savefig(out)
     print(f"Saved plot to {out}")
