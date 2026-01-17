@@ -17,7 +17,7 @@ def parse_markdown_table(file_path):
     解析 Markdown 表格文件
     
     返回:
-        records: 所有记录的列表 [{result_dump, base, clock_period, total_wirelength}, ...]
+        records: 所有记录的列表 [{result_dump, base, ecp, dwl, cts_wl }, ...]
     """
     records = []
     
@@ -35,48 +35,59 @@ def parse_markdown_table(file_path):
         if not line:
             continue
         
-        # 检测表头
+        # 1. 检测表头
         if '| result_dump |' in line and '| base |' in line:
             header_found = True
             continue
         
-        # 跳过分隔行
-        if header_found and re.match(r'^\|[\s\-|]+\|$', line):
+        # 2. 检测分隔行 (关键修改：添加了 : 到正则中，以支持 | :---: | 格式)
+        if header_found and re.match(r'^\|[\s\-:|]+\|$', line):
             in_table = True
             continue
         
-        # 解析数据行
+        # 3. 解析数据行
         if in_table and line.startswith('|'):
             parts = [p.strip() for p in line.split('|')]
-            # 过滤空字符串
+            # 过滤空字符串（split后首尾可能为空）
             parts = [p for p in parts if p]
             
-            if len(parts) >= 4:
+            # 确保列数足够 (至少5列: result_dump, base, ecp, dwl, cts_wl)
+            if len(parts) >= 4: # 放宽限制，防止因为 cts_wl 缺失导致跳过
                 try:
+                    # 解析 result_dump 和 base
                     result_dump = int(parts[0])
                     base = int(parts[1])
-                    clock_period = float(parts[2])
                     
-                    # 处理 total_wirelength
-                    wirelength_str = parts[3]
-                    if wirelength_str == 'N/A':
-                        total_wirelength = None
-                    else:
-                        # 提取数字部分 (例如: "107593 um" -> 107593)
-                        match = re.search(r'([\d.]+)', wirelength_str)
+                    # 辅助函数：处理数值或 N/A
+                    def parse_metric(val_str):
+                        if not val_str or 'N/A' in val_str:
+                            return None
+                        # 提取数字部分 (兼容 "100" 和 "100 um")
+                        match = re.search(r'([\d.]+)', val_str)
                         if match:
-                            total_wirelength = float(match.group(1))
-                        else:
-                            total_wirelength = None
+                            return float(match.group(1))
+                        return None
+
+                    # 解析 ECP (可能为 N/A)
+                    ecp = parse_metric(parts[2])
                     
+                    # 解析 DWL (可能为 N/A)
+                    dwl = parse_metric(parts[3])
+                    
+                    # 解析 CTS WL (如果有第5列)
+                    cts_wl = parse_metric(parts[4]) if len(parts) > 4 else None
+                    
+                    # 将解析结果存入列表
                     records.append({
                         'result_dump': result_dump,
                         'base': base,
-                        'clock_period': clock_period,
-                        'total_wirelength': total_wirelength
+                        'ecp': ecp,
+                        'dwl': dwl,
+                        'cts_wl': cts_wl
                     })
-                except (ValueError, IndexError) as e:
-                    # 跳过无法解析的行
+
+                except (ValueError, IndexError):
+                    # 如果 result_dump 或 base 解析失败，跳过该行
                     continue
     
     return records
@@ -96,12 +107,12 @@ def analyze_records(records, objective: str):
     # 目标列/伴随列选择
     def metric(rec):
         if obj == "DWL":
-            return rec['total_wirelength']
+            return rec['dwl']
         if obj == "ECP":
-            return rec['clock_period']
+            return rec['ecp']
         if obj == "COMBO":
-            wl = rec['total_wirelength']
-            cp = rec['clock_period']
+            wl = rec['dwl']
+            cp = rec['ecp']
             if wl is None or cp is None:
                 return None
             return wl + cp
@@ -121,18 +132,18 @@ def analyze_records(records, objective: str):
         min_info = {
             'result_dump': min_record['result_dump'],
             'base': min_record['base'],
-            'clock_period': min_record['clock_period'],
-            'total_wirelength': min_record['total_wirelength'],
+            'ecp': min_record['ecp'],
+            'dwl': min_record['dwl'],
             'metric': min_record['metric'],
         }
     
-    # 统计 N/A 总次数
-    na_count = sum(1 for r in records if r['total_wirelength'] is None or r['clock_period'] is None)
+    # 统计 N/A 总次数 (只要 ecp 或 dwl 有一个是 None，就算作该行包含 N/A)
+    na_count = sum(1 for r in records if r['dwl'] is None or r['ecp'] is None)
     
     # 统计每个 result_dump 的 N/A 次数
     na_per_dump = defaultdict(int)
     for record in records:
-        if record['total_wirelength'] is None or record['clock_period'] is None:
+        if record['dwl'] is None or record['ecp'] is None:
             na_per_dump[record['result_dump']] += 1
     
     return min_info, na_count, na_per_dump
@@ -151,8 +162,8 @@ def print_analysis(min_info, na_count, na_per_dump, records, objective: str):
     if min_info:
         print(f"  Result Dump:      {min_info['result_dump']}")
         print(f"  Base:             {min_info['base']}")
-        print(f"  Clock Period:     {min_info['clock_period']}")
-        print(f"  Total Wirelength: {min_info['total_wirelength']}")
+        print(f"  ECP:              {min_info['ecp']}")
+        print(f"  Total Wirelength: {min_info['dwl']}")
         print(f"  Metric({objective.upper()}): {min_info['metric']:.4f}")
     else:
         print("  没有找到有效的目标数据")
@@ -161,7 +172,8 @@ def print_analysis(min_info, na_count, na_per_dump, records, objective: str):
     print(f"\n【N/A 统计】")
     print(f"  总记录数:         {len(records)}")
     print(f"  N/A 总次数:       {na_count}")
-    print(f"  N/A 比例:         {na_count/len(records)*100:.2f}%")
+    percentage = (na_count/len(records)*100) if records else 0
+    print(f"  N/A 比例:         {percentage:.2f}%")
     
     # 每个 result_dump 的 N/A 统计
     print(f"\n【各 Result Dump 的 N/A 统计】")
@@ -176,7 +188,7 @@ def print_analysis(min_info, na_count, na_per_dump, records, objective: str):
         for dump_id, count in sorted_dumps:
             print(f"    Result Dump {dump_id:3d}: {count:2d} 次 N/A")
     else:
-        print("  所有记录都有有效的 wirelength 数据")
+        print("  所有记录都有有效的 metrics 数据")
     
     # 完全有效的 result_dump
     print(f"\n【完全有效的 Result Dump】")
@@ -199,8 +211,8 @@ def main():
         formatter_class=argparse.RawDescriptionHelpFormatter,
         epilog='''
 示例:
-  python count.py log_metrics_dual_1208_100.md
-  python count.py --detailed log_metrics_orfo-textgrad_1221_100.md
+  python count.py output_results/asap7_aes_DWL_metrics.md -o DWL
+  python count.py --detailed output_results/asap7_aes_DWL_metrics.md -o COMBO
         '''
     )
     parser.add_argument('file', help='Markdown 文件路径')
@@ -251,8 +263,3 @@ if __name__ == '__main__':
         sys.argv.append('-h')
     
     main()
-
-# python3 count.py --detailed ./output_results/orfo-textgrad-i75-p25.md -o DWL
-# python3 count.py --detailed ./output_results/orfo-textgrad-i75-p25.md -o ECP
-# python3 count.py --detailed ./output_results/orfo-textgrad-i75-p25.md -o COMBO
-
