@@ -1,10 +1,7 @@
 #!/usr/bin/env python3
 """
-Extract wirelength and clock period metrics from result_dump logs and write a markdown report.
-
-Targets:
-- 5_1_grt.log: line containing "[INFO GRT-0018] Total wirelength:"
-- 1_1_yosys_canonicalize.log: line containing "Setting clock period to"
+Extract metrics (ECP, Detailed Wirelength, CTS Wirelength) from nested logs:
+Structure: backup_dir/platform/design/result_dump_k/logs_dump/*_runi.log
 """
 
 from __future__ import annotations
@@ -13,68 +10,107 @@ import argparse
 import datetime as _dt
 import re
 from pathlib import Path
-import json
-from typing import Iterable, Optional, Tuple
+from typing import Iterable, Tuple, Dict, Optional, List
+
+ECP_PATTERN = re.compile(
+    r'Report metrics stage 6, finish[\s\S]*?clk period_min\s*=\s*([-\d.]+)'
+)
+
+DWL_PATTERN = re.compile(
+    r'\[INFO DRT-0198\] Complete detail routing\..*?Total wire length\s*=\s*([\d.]+)', 
+    re.DOTALL
+)
+
+CTS_WL_PATTERN = re.compile(r'Total wirelength:\s*([\d.]+)')
 
 
-WIRELENGTH_RE = re.compile(r"\[INFO GRT-0018\]\s*Total wirelength:\s*([0-9.]+)\s*um", re.IGNORECASE)
-CLOCK_RE = re.compile(r"Setting clock period to\s*([0-9.]+)", re.IGNORECASE)
-
-
-def parse_numeric(pattern: re.Pattern[str], path: Path) -> Optional[str]:
+def extract_metrics_from_log(log_path: Path) -> Dict[str, Optional[float]]:
+    """读取单个日志文件并应用所有正则提取指标"""
+    metrics = {
+        "ecp": None,
+        "dwl": None,
+        "cts_wl": None
+    }
+    
     try:
-        with path.open("r", encoding="utf-8", errors="ignore") as fh:
-            for line in fh:
-                match = pattern.search(line)
-                if match:
-                    return match.group(1)
-    except FileNotFoundError:
-        return None
-    return None
+        content = log_path.read_text(encoding="utf-8", errors="ignore")
+    except Exception as e:
+        print(f"[WARN] Failed to read {log_path}: {e}")
+        return metrics
+
+    ecp_match = ECP_PATTERN.search(content)
+    if ecp_match:
+        metrics['ecp'] = float(ecp_match.group(1))
+
+    dwl_match = DWL_PATTERN.search(content)
+    if dwl_match:
+        metrics['dwl'] = float(dwl_match.group(1))
+
+    cts_wl_match = CTS_WL_PATTERN.search(content)
+    if cts_wl_match:
+        metrics['cts_wl'] = float(cts_wl_match.group(1))
+
+    return metrics
 
 
-def parse_wirelength(base_path: Path) -> Optional[float]:
-    """
-    Prefer detailed route JSON (5_2_route.json) for wirelength; fall back to GRT log.
-    """
-    route_json = base_path / "5_2_route.json"
-    if route_json.exists():
-        try:
-            with route_json.open("r", encoding="utf-8", errors="ignore") as fh:
-                data = json.load(fh)
-            wl = data.get("detailedroute__route__wirelength")
-            if wl is not None:
-                return float(wl)
-        except Exception as e:
-            print(f"[WARN] Failed to parse wirelength from {route_json}: {e}")
-
-    # fallback to global route log regex
-    wl_str = parse_numeric(WIRELENGTH_RE, base_path / "5_1_grt.log")
-    return float(wl_str) if wl_str is not None else None
-
-
-def discover_results(base_dir: Path) -> Iterable[Tuple[str, str, Path]]:
-    for result_dir in sorted(base_dir.glob("result_dump_*"), key=_numeric_suffix):
-        logs_root = result_dir / "logs_dump"
-        if not logs_root.is_dir():
-            continue
-        for base_dir in sorted(logs_root.glob("base_*"), key=_numeric_suffix):
-            yield (
-                result_dir.name.replace("result_dump_", ""),
-                base_dir.name.replace("base_", ""),
-                base_dir,
-            )
-
-
-def _numeric_suffix(path: Path) -> int:
-    stem = path.name.split("_")[-1]
+def _extract_int_suffix(name: str, prefix: str) -> int:
+    """辅助函数：从 result_dump_10 或 run5 中提取数字"""
     try:
-        return int(stem)
+        # 移除前缀，提取剩余部分的数字
+        # 例如 prefix="result_dump_", name="result_dump_10" -> 10
+        # 或者处理简单后缀分割
+        if prefix and name.startswith(prefix):
+            parts = name.replace(prefix, "")
+            return int(parts)
+        # 针对 _run{i}.log 的特殊处理
+        match = re.search(r'run(\d+)', name)
+        if match:
+            return int(match.group(1))
     except ValueError:
-        return 0
+        pass
+    return -1
 
 
-def build_markdown(rows: list[dict[str, str]], source_root: Path) -> str:
+def discover_logs(base_dir: Path) -> Iterable[Tuple[int, int, Path]]:
+    """
+    遍历结构:
+      base_dir/
+        result_dump_0/
+           logs_dump/
+              *_run0.log
+              *_run1.log
+        result_dump_1/
+           ...
+    
+    返回生成器: (Iteration ID, Task ID, Log Path)
+    """
+    # 1. 查找所有 result_dump_* 目录
+    # 按 k 值排序，保证输出顺序
+    result_dirs = sorted(base_dir.glob("result_dump_*"), key=lambda p: _extract_int_suffix(p.name, "result_dump_"))
+    
+    for r_dir in result_dirs:
+        iter_id = _extract_int_suffix(r_dir.name, "result_dump_")
+        if iter_id == -1: continue
+
+        logs_dir = r_dir / "logs_dump"
+        if not logs_dir.is_dir():
+            continue
+
+        # 2. 在每个 logs_dump 下查找 *_runi.log
+        # 按 i 值排序
+        log_files = sorted(logs_dir.glob("*_run*.log"), key=lambda p: _extract_int_suffix(p.stem, ""))
+        
+        for log_file in log_files:
+            # 提取 task id (i)
+            # 文件名通常是: asap7_aes_run0.log 或 simple_run0.log
+            # 使用正则更稳健地匹配末尾的 run{数字}
+            match = re.search(r"_run(\d+)\.log$", log_file.name)
+            if match:
+                task_id = int(match.group(1))
+                yield iter_id, task_id, log_file
+
+
+def build_markdown(rows: List[Dict], source_root: Path) -> str:
     timestamp = _dt.datetime.now().strftime("%Y-%m-%d %H:%M:%S")
     lines = [
         "# Log Metrics Summary",
@@ -82,15 +118,25 @@ def build_markdown(rows: list[dict[str, str]], source_root: Path) -> str:
         f"- Source root: `{source_root}`",
         f"- Generated at: {timestamp}",
         "",
-        "| result_dump | base | clock_period | total_wirelength |",
-        "| --- | --- | --- | --- |",
+        "| result_dump | base | ecp | dwl (um) | cts_wl (um) |",
+        "| :---: | :---: | :---: | :---: | :---: |",
     ]
+    
+    # 排序优先级: Iteration (升序) -> Task ID (升序)
+    rows.sort(key=lambda x: (x['iter_id'], x['task_id']))
+
     for row in rows:
+        ecp_str = f"{row['ecp']:.4f}" if row['ecp'] is not None else "N/A"
+        dwl_str = f"{row['dwl']:.4f}" if row['dwl'] is not None else "N/A"
+        cts_str = f"{row['cts_wl']:.4f}" if row['cts_wl'] is not None else "N/A"
+        
         lines.append(
-            f"| {row['result']} | {row['base']} | {row['clock']} | {row['wirelength']} |"
+            f"| {row['iter_id']} | {row['task_id']} | {ecp_str} | {dwl_str} | {cts_str} |"
         )
+        
     if not rows:
-        lines.append("| (none) | (none) | (none) | (none) |")
+        lines.append("| - | - | - | - | - |")
+        
     return "\n".join(lines) + "\n"
 
 
@@ -98,52 +144,52 @@ def main() -> None:
     repo_root = Path(__file__).resolve().parent
 
     parser = argparse.ArgumentParser(
-        description="Extract wirelength and clock period metrics from result_dump logs."
+        description="Extract metrics from nested result_dump_k/logs_dump directories."
     )
     parser.add_argument(
         "-i",
         "--input",
         required=True,
         type=Path,
-        help="Root directory containing result_dump_* directories (e.g., backup_dir/<platform>/<design>).",
+        help="Root directory (e.g., backup_dir/<platform>/<design>).",
     )
     parser.add_argument(
         "-o",
         "--output",
         type=Path,
-        help="Output markdown file, e.g., output_results/<platform>_<design>_<ts>.md. If omitted, auto-generate under output_results/.",
+        help="Output markdown file path.",
     )
     args = parser.parse_args()
 
     source_root = args.input.resolve()
-    # Auto-generate output path when not provided
+
     if args.output:
         output_path = args.output if args.output.is_absolute() else Path.cwd() / args.output
     else:
-        platform = source_root.parent.name if source_root.parent else "unknown"
         design = source_root.name
+        platform = source_root.parent.name if source_root.parent else "unknown"
         ts = _dt.datetime.now().strftime("%Y%m%d_%H%M%S")
         output_path = repo_root / "output_results" / f"{platform}_{design}_{ts}.md"
 
-    rows: list[dict[str, str]] = []
-    for result_id, base_id, base_path in discover_results(source_root):
-        clock = parse_numeric(CLOCK_RE, base_path / "1_1_yosys_canonicalize.log")
-        wirelength = parse_wirelength(base_path)
-        rows.append(
-            {
-                "result": result_id,
-                "base": base_id,
-                "clock": clock or "N/A",
-                "wirelength": f"{wirelength} um" if wirelength is not None else "N/A",
-            }
-        )
+    print(f"Scanning for result_dump_* directories in: {source_root}")
+    
+    rows = []
+    # discover_logs 现在返回 (iter_id, task_id, path)
+    for iter_id, task_id, log_path in discover_logs(source_root):
+        metrics = extract_metrics_from_log(log_path)
+        rows.append({
+            "iter_id": iter_id,
+            "task_id": task_id,
+            "ecp": metrics["ecp"],
+            "dwl": metrics["dwl"],
+            "cts_wl": metrics["cts_wl"]
+        })
 
-    output_md = build_markdown(rows, source_root)
+    print(f"Found {len(rows)} logs across all iterations. Writing report to: {output_path}")
+    
     output_path.parent.mkdir(parents=True, exist_ok=True)
-    output_path.write_text(output_md, encoding="utf-8")
+    output_path.write_text(build_markdown(rows, source_root), encoding="utf-8")
 
 
 if __name__ == "__main__":
     main()
-
-# python extract_metrics.py -i backup_dir/asap7/aes -o output_results/asap7_aes_20250101_1200.md
