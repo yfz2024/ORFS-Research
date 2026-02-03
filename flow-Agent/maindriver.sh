@@ -64,10 +64,10 @@ objective=${objective:-"ECP"}
 objective="${objective^^}"
 
 # Validate platform
-if [[ "$platform" != "asap7" && "$platform" != "sky130hd" ]]; then
-    echo "Error: platform must be either asap7 or sky130hd"
-    exit 1
-fi
+# if [[ "$platform" != "asap7" && "$platform" != "sky130hd" ]]; then
+#     echo "Error: platform must be either asap7 or sky130hd"
+#     exit 1
+# fi
 
 # Validate design
 if [[ "$design" != "aes" && "$design" != "ibex" && "$design" != "jpeg" ]]; then
