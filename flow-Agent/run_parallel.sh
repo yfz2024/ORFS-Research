@@ -14,10 +14,10 @@ design=$2
 parallel_runs=$3
 
 # Validate platform and design
-if [[ ! "$platform" =~ ^(asap7|sky130hd)$ ]]; then
-    echo "Error: platform must be asap7 or sky130hd"
-    exit 1
-fi
+# if [[ ! "$platform" =~ ^(asap7|sky130hd)$ ]]; then
+#     echo "Error: platform must be asap7 or sky130hd"
+#     exit 1
+# fi
 
 if [[ ! "$design" =~ ^(aes|ibex|jpeg)$ ]]; then
     echo "Error: design must be aes, ibex, or jpeg"
